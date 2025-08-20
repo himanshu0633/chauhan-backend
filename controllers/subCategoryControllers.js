@@ -58,11 +58,21 @@ exports.getSubCategoryById = async (req, res) => {
 // Update a subcategory
 exports.updateSubCategory = async (req, res) => {
   try {
+    const imagePath = req.file ? req.file.path : undefined;
+    const updateData = {
+      ...req.body,
+      updatedAt: Date.now(),
+    };
+    if (imagePath) {
+      updateData.image = imagePath;
+    }
+
     const updatedSubCategory = await SubCategory.findByIdAndUpdate(
       req.params.id,
-      { ...req.body, updatedAt: Date.now() },
+      updateData,  // Use updateData here to include image if exists
       { new: true }
     );
+
 
     if (!updatedSubCategory) {
       logger.warn(`SubCategory not found for update: ${req.params.id}`);

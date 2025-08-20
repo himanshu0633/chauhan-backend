@@ -6,6 +6,7 @@ const categorySchema = mongoose.Schema(
     name: { type: String , required: true },
     description: { type: String },
     image: { type: String },
+    assignedRoute: { type: String },
     Subcategory_id: { type: mongoose.Schema.Types.ObjectId, ref: "ProductSubCategories" },
     deleted_at : { type: Date, default: null },
   },
