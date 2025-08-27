@@ -1,3 +1,11 @@
+app.use((req, res, next) => {
+    // Prevent caching
+    res.setHeader('Cache-Control', 'no-store'); // Don't cache
+    res.setHeader('Pragma', 'no-cache'); // Older HTTP/1.0 caches
+    res.setHeader('Expires', '0'); // Set the expiration time to 0
+    next();
+});
+
 const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
