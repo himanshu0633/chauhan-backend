@@ -4,6 +4,7 @@ const bannerSchema = mongoose.Schema(
   {
     type: { type: String, required: true },
     slider_image: [{ type: String }],
+    variety: { type: String, required: true },
     deleted_at: { type: Date, default: null },
   },
   { timestamps: true }
