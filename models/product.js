@@ -24,6 +24,7 @@ const productSchema = mongoose.Schema(
     category: { type: String },
     sub_category: { type: String },
     occasion: { type: String },
+    genderVariety: { type: String },
     expires_on: { type: String },
     suitable_for: { type: String },
     benefits: { type: String },
