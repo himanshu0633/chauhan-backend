@@ -39,24 +39,31 @@ try {
   logger.error('Database connection threw synchronously', { error: err?.message });
 }
 
-// 6) Global middleware
+// 6) CORS configuration
+const corsOptions = {
+  origin: ['https://www.chauhansonsjewellers.com'], // Allow requests from your frontend domain
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+
+// Apply CORS middleware with the above options
+app.use(cors(corsOptions));
+
+// 7) Global middleware
 app.use(express.json());
-app.use(cors());
-app.set('trust proxy', true);
+app.set('trust proxy', true); // Important for handling HTTPS behind proxies
 
 // Static files
 app.use('/uploads', express.static('uploads'));
-// const path = require('path');
-// app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// 7) Routes (Routers only; no app.listen in any route file)
+// 8) Routes (Routers only; no app.listen in any route file)
 app.use('/admin', adminRoutes);
 app.use('/user', usersRoutes);
 app.use('/api', orderRoutes);
 // app.use('/', support);
 // app.use('/', cities);
 
-// 8) Logs API endpoint (reads JSON lines written by logger)
+// 9) Logs API endpoint (reads JSON lines written by logger)
 app.get('/api/logs', (req, res) => {
   fs.readFile(logFilePath, 'utf8', (err, data = '') => {
     if (err) {
@@ -76,17 +83,17 @@ app.get('/api/logs', (req, res) => {
   });
 });
 
-// 9) Health check
+// 10) Health check
 app.get('/', (req, res) => {
   res.send('✅ Chauhan jewellers backend is running with HTTPS!');
 });
 
-// 10) 404 handler
+// 11) 404 handler
 app.use((req, res, next) => {
   res.status(404).json({ error: 'Not Found' });
 });
 
-// 11) Error handler
+// 12) Error handler
 // Ensure nothing logs `app` here; keep utils pure to avoid circular imports.
 app.use((err, req, res, next) => {
   logger.error('Unhandled error', { error: err?.message, stack: err?.stack });
