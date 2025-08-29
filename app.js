@@ -13,6 +13,8 @@ dotenv.config();
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
+const https = require('https');
+const http = require('http');
 
 // 3) Local deps (must NOT import ./server to avoid circular requires)
 const connectDB = require('./config/db');
@@ -42,7 +44,18 @@ try {
 // 6) Global middleware
 app.use(express.json());
 app.use(cors());
-app.set('trust proxy', true);
+
+// Force HTTPS in production (ensure that app runs on HTTPS)
+if (process.env.NODE_ENV === 'production') {
+  app.use((req, res, next) => {
+    if (req.headers['x-forwarded-proto'] !== 'https') {
+      return res.redirect('https://' + req.headers.host + req.url);
+    }
+    next();
+  });
+}
+
+app.set('trust proxy', true);  // To handle proxy when using reverse proxies like Nginx
 
 // Static files
 app.use('/uploads', express.static('uploads'));
@@ -92,3 +105,26 @@ app.use((err, req, res, next) => {
   logger.error('Unhandled error', { error: err?.message, stack: err?.stack });
   res.status(500).json({ error: 'Internal Server Error' });
 });
+
+// If running in production, make sure to use HTTPS server
+if (process.env.NODE_ENV === 'production') {
+  const sslOptions = {
+    key: fs.readFileSync('/path/to/your/ssl.key'), // Path to your SSL key
+    cert: fs.readFileSync('/path/to/your/ssl.cert') // Path to your SSL cert
+  };
+
+  // Create HTTPS server
+  https.createServer(sslOptions, app).listen(443, () => {
+    console.log('HTTPS Server running on port 443');
+  });
+
+  // Optionally, also redirect all HTTP traffic to HTTPS
+  http.createServer(app).listen(80, () => {
+    console.log('HTTP Server running on port 80 (redirecting to HTTPS)');
+  });
+} else {
+  // In development or non-production environment, fallback to HTTP for testing
+  app.listen(3000, () => {
+    console.log('Server running on port 3000');
+  });
+}
