@@ -46,6 +46,24 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
+// 6) CORS configuration
+const allowedOrigins = [
+  'https://chauhansonsjewellers.com',
+  'https://www.chauhansonsjewellers.com'
+];
+
+app.set('trust proxy', true);
+
+app.use(cors({
+  origin(origin, cb) {
+    if (!origin) return cb(null, true); // allow curl/postman
+    return cb(null, allowedOrigins.includes(origin));
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
 // Apply CORS middleware with the above options
 app.use(cors(corsOptions));
 
