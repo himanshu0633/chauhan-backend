@@ -1,9 +1,3 @@
-'use strict';
-
-/**
- * app.js – Express application setup (no app.listen here)
- * PM2 should start server.js which requires this file.
- */
 
 // 1) Load env first
 const dotenv = require('dotenv');
