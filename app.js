@@ -51,7 +51,8 @@ app.use(cors(corsOptions));
 
 // 7) Global middleware
 app.use(express.json());
-app.set('trust proxy', true); // Important for handling HTTPS behind proxies
+app.use(cors());
+app.set('trust proxy', true);
 
 // Static files
 app.use('/uploads', express.static('uploads'));
