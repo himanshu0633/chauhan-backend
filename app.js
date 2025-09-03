@@ -1,9 +1,3 @@
-'use strict';
-
-/**
- * app.js – Express application setup (no app.listen here)
- * PM2 should start server.js which requires this file.
- */
 
 // 1) Load env first
 const dotenv = require('dotenv');
@@ -39,16 +33,33 @@ try {
   logger.error('Database connection threw synchronously', { error: err?.message });
 }
 
-// 6) CORS configuration
-const corsOptions = {
-  origin: ['https://www.chauhansonsjewellers.com'], // Allow requests from your frontend domain
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-};
+/// 6) CORS configuration
+const allowedOrigins = [
+  'https://chauhansonsjewellers.com',    // Production domain
+  'https://www.chauhansjewellers.com',   // Production domain
+  'http://localhost:5173',               // Local development (frontend running on localhost)
+];
 
+app.set('trust proxy', true);
 
-// Apply CORS middleware with the above options
-app.use(cors(corsOptions));
+// Apply CORS middleware
+app.use(cors({
+  origin: (origin, cb) => {
+    // Allow requests with no origin (like curl or Postman requests)
+    if (!origin) return cb(null, true);
+
+    // Check if the origin is allowed
+    if (allowedOrigins.includes(origin)) {
+      return cb(null, true);
+    } else {
+      return cb(new Error('CORS policy: Origin not allowed'), false);
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], // Allowed methods
+  allowedHeaders: ['Content-Type', 'Authorization'], // Allowed headers
+  credentials: true, // Allow cookies/credentials
+}));
+
 
 // 7) Global middleware
 app.use(express.json());
