@@ -13,6 +13,7 @@ const connectDB = require('./config/db');
 const adminRoutes = require('./routes/admin');
 const usersRoutes = require('./routes/users');
 const orderRoutes = require('./routes/order');
+const reviewRoutes = require('./routes/review');
 // const support = require('./routes/support');
 // const cities = require('./routes/city');
 const { logger, logFilePath } = require('./utils/logger');
@@ -46,7 +47,7 @@ app.set('trust proxy', true);
 app.use(cors({
   origin: (origin, cb) => {
     // Allow requests with no origin (like curl or Postman requests)
-    if (!origin) return cb(null, true); 
+    if (!origin) return cb(null, true);
 
     // Check if the origin is allowed
     if (allowedOrigins.includes(origin)) {
@@ -68,6 +69,7 @@ app.set('trust proxy', true);
 
 // Static files
 app.use('/uploads', express.static('uploads'));
+app.use('/api/review', reviewRoutes);
 
 // 8) Routes (Routers only; no app.listen in any route file)
 app.use('/admin', adminRoutes);
