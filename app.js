@@ -168,6 +168,7 @@ const allowedOrigins = [
   'https://chauhansonsjewellers.com',
   'https://www.chauhansjewellers.com',
   'http://localhost:5173',
+  'https://fvvcbrpm-4000.inc1.devtunnels.ms',
 ];
 
 app.set('trust proxy', true);
@@ -206,6 +207,40 @@ app.use('/api', orderRoutes);
 // app.use('/', support);
 // app.use('/', cities);
 
+// option1: Contact form route (commented out for now)
+// Endpoint to receive contact form data and send email
+// app.post('/send-contact-form', async (req, res) => {
+//   const { name, email, mobile, location, message } = req.body;
+
+//   if (!name || !email || !mobile || !location || !message) {
+//     return res.status(400).json({ message: 'All fields are required.' });
+//   }
+
+//   const mailOptions = {
+//     from: process.env.EMAIL_USERNAME,
+//     // to: 'chauhansons69@yahoo.com', // your receiving email
+//     to: 'ciisankita@gmail.com', // your receiving email
+//     subject: `New Contact Form Submission from ${name}`,
+//     html: `
+//       <h3>Contact Form Submission</h3>
+//       <p><strong>Name:</strong> ${name}</p>
+//       <p><strong>Email:</strong> ${email}</p>
+//       <p><strong>Phone:</strong> ${mobile}</p>
+//       <p><strong>Location:</strong> ${location}</p>
+//       <p><strong>Message:</strong><br/>${message.replace(/\n/g, '<br/>')}</p>
+//     `
+//   };
+
+//   try {
+//     const info = await transporter.sendMail(mailOptions);
+//     logger.info('Contact form email sent', { to: mailOptions.to, messageId: info.messageId });
+//     res.status(200).json({ message: 'Contact form submitted successfully' });
+//   } catch (error) {
+//     logger.error('Failed to send contact form email', { error: error.message });
+//     res.status(500).json({ message: 'Failed to send contact email' });
+//   }
+// });
+
 
 // --- New OTP Email Verification Routes ---
 
@@ -215,6 +250,35 @@ const transporter = nodemailer.createTransport({
   auth: {
     user: process.env.EMAIL_USERNAME,
     pass: process.env.EMAIL_PASSWORD,
+  }
+});
+
+// option 2: Contact form route (improved)
+app.post('/send-contact-form', async (req, res) => {
+  const { name, email, mobile, location, message } = req.body;
+  if (!name || !email || !mobile || !location || !message) {
+    return res.status(400).json({ message: 'All fields are required.' });
+  }
+
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_USERNAME,
+      // to: 'ciisankita@gmail.com',
+      to: 'chauhansons69@yahoo.com',
+      subject: `New Contact Form Submission from ${name}`,
+      html: `
+        <h3>Contact Form Submission</h3>
+        <p><strong>Name:</strong> ${name}</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Phone:</strong> ${mobile}</p>
+        <p><strong>Location:</strong> ${location}</p>
+        <p><strong>Message:</strong><br/>${String(message).replace(/\n/g, '<br/>')}</p>
+      `
+    });
+    res.status(200).json({ message: 'Contact form submitted successfully' });
+  } catch (error) {
+    logger.error('Failed to send contact form email', { error: error.message });
+    res.status(500).json({ message: 'Failed to send contact email' });
   }
 });
 
