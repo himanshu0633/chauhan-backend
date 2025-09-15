@@ -47,29 +47,27 @@ try {
 
 /// 6) CORS configuration
 const allowedOrigins = [
-  'https://chauhansonsjewellers.com',
-  'https://www.chauhansonsjewellers.com',
-  'http://localhost:5173',
-  'https://fvvcbrpm-4000.inc1.devtunnels.ms',
+  'https://chauhansonsjewellers.com',  // Allow your main domain
+  'https://www.chauhansjewellers.com', // Allow the www subdomain
+  'http://localhost:5173',            // Allow local development
+  'https://fvvcbrpm-4000.inc1.devtunnels.ms', // Allow dev tunnel if needed
 ];
 
-app.set('trust proxy', true);
-
-// Apply CORS middleware
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin) return cb(null, true);
+    if (!origin) return cb(null, true); // Allow requests with no origin (like Postman)
     if (allowedOrigins.includes(origin)) {
-      return cb(null, true);
+      return cb(null, true); // Allow CORS for allowed origins
     } else {
-      return cb(new Error('CORS policy: Origin not allowed'), false);
+      return cb(new Error('CORS policy: Origin not allowed'), false); // Block other origins
     }
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
+  credentials: true,  // Allow credentials (cookies, authorization headers)
 }));
 
+// Apply CORS middleware
 
 // 7) Global middleware
 app.use(express.json());
