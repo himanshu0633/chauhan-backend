@@ -51,6 +51,7 @@ const allowedOrigins = [
   'https://www.chauhansjewellers.com', // Allow the www subdomain
   'http://localhost:5173',            // Allow local development
   'https://fvvcbrpm-4000.inc1.devtunnels.ms', // Allow dev tunnel if needed
+   'http://31.97.237.55',
 ];
 
 app.use(cors({
