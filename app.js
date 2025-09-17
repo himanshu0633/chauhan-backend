@@ -69,6 +69,25 @@ app.use(cors({
 }));
 
 // Apply CORS middleware
+// Read SSL certificate files
+const options = {
+  key: fs.readFileSync('/etc/letsencrypt/live/chauhansonsjewellers.com/privkey.pem'),
+  cert: fs.readFileSync('/etc/letsencrypt/live/chauhansonsjewellers.com/fullchain.pem'),
+};
+
+// Use HTTPS server to listen on port 443 (default HTTPS port)
+https.createServer(options, app).listen(443, () => {
+  console.log('Backend API is running securely on HTTPS!');
+});
+
+// Optionally, set up HTTP redirect to HTTPS
+const http = require('http');
+http.createServer((req, res) => {
+  res.writeHead(301, { "Location": "https://" + req.headers['host'] + req.url });
+  res.end();
+}).listen(80, () => {
+  console.log('HTTP server running on port 80 and redirecting to HTTPS');
+});
 
 // 7) Global middleware
 app.use(express.json());
