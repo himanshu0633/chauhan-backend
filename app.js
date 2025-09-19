@@ -18,6 +18,7 @@ const usersRoutes = require('./routes/users');
 const orderRoutes = require('./routes/order');
 const reviewRoutes = require('./routes/review');
 const videoRoutes = require('./routes/video');
+const razorpayWebhookRouter = require('./routes/razorpayWebhook');
 // const support = require('./routes/support');
 // const cities = require('./routes/city');
 const { logger, logFilePath } = require('./utils/logger');
@@ -87,6 +88,7 @@ app.use('/admin', adminRoutes);
 app.use('/user', usersRoutes);
 app.use('/api', orderRoutes);
 app.use('/videos', videoRoutes);
+app.use('/webhook', razorpayWebhookRouter);
 // app.use('/', support);
 // app.use('/', cities);
 
