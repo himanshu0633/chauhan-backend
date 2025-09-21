@@ -38,4 +38,19 @@ router.get('/', async (req, res) => {
     res.json(videos);
 });
 
+// Delete video API (DELETE)
+router.delete('/:id', async (req, res) => {
+    try {
+        const deletedVideo = await Video.findByIdAndDelete(req.params.id);
+        if (!deletedVideo) {
+            return res.status(404).json({ error: 'Video not found' });
+        }
+        // Optionally delete the video file from storage here if needed
+        res.json({ message: 'Video deleted successfully' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
 module.exports = router;
