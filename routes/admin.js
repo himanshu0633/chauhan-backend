@@ -18,6 +18,16 @@ router.post("/login", adminLogin);
 // router.post("/verifyOTP", verifyOTP);
 // router.post("/updatePassword", updatePassword);
 
+// In adminRoutes file (e.g., routes/admin.js)
+router.get("/exists", async (req, res) => {
+  const { email } = req.query;
+  if (!email) return res.status(400).json({ message: "Email is required" });
+  const existingAdmin = await Admin.findOne({ email });
+  if (existingAdmin) return res.json({ exists: true });
+  return res.json({ exists: false });
+});
+
+
 router.post("/createAdmin", createAdmin);
 router.get("/readallAdmins", readAllAdmins);
 router.put("/updateAdmin/:id", updateAdmin);
