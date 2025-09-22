@@ -338,7 +338,8 @@ async function handlePaymentWebhook(event, eventData) {
     let paymentStatus = '';
     switch (event) {
       case 'payment.created':
-        paymentStatus = 'created';
+        // paymentStatus = 'created';
+        paymentStatus = 'paid';
         break;
       case 'payment.captured':
         paymentStatus = 'captured';
