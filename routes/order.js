@@ -132,7 +132,8 @@ const router = express.Router();
 const Order = require('../models/order');
 const { logger } = require("../utils/logger");
 const Razorpay = require('razorpay');
-const sendOrderEmail = require('../utils/sendOrderEmail');
+const nodemailer = require('nodemailer');
+// const sendOrderEmail = require('../utils/sendOrderEmail');
 
 // Initialize Razorpay instance
 const razorpayInstance = new Razorpay({
@@ -140,21 +141,146 @@ const razorpayInstance = new Razorpay({
     key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
+
+// // 1: Create Order Route
+// router.post('/createOrder', async (req, res) => {
+//     const { userId, items, address, phone, totalAmount, paymentId } = req.body;
+
+//     console.log("Creating order:", req.body);
+
+//     // Debug log to see what's being received
+//     console.log("Received createOrder request:", {
+//         userId: !!userId,
+//         items: items?.length,
+//         address: !!address,
+//         phone: !!phone,
+//         totalAmount: !!totalAmount,
+//         paymentId: !!paymentId
+//     });
+
+//     // Better validation with specific error messages
+//     if (!userId) {
+//         return res.status(400).json({ message: "Missing required field: userId" });
+//     }
+//     if (!items?.length) {
+//         return res.status(400).json({ message: "Missing required field: items" });
+//     }
+//     if (!address) {
+//         return res.status(400).json({ message: "Missing required field: address" });
+//     }
+//     if (!phone) {
+//         return res.status(400).json({ message: "Missing required field: phone" });
+//     }
+//     if (!totalAmount) {
+//         return res.status(400).json({ message: "Missing required field: totalAmount" });
+//     }
+
+//     try {
+//         // Create Razorpay Order via API
+//         const razorpayOrder = await razorpayInstance.orders.create({
+//             amount: totalAmount * 100,  // amount in paise
+//             currency: "INR",
+//             receipt: `receipt_order_${Date.now()}`,
+//             payment_capture: 1, // Auto capture enabled
+//         });
+
+//         // Save order in your DB with razorpayOrderId
+//         const newOrder = new Order({
+//             userId,
+//             items,
+//             address,
+//             phone,
+//             totalAmount,
+//             paymentId,
+//             razorpayOrderId: razorpayOrder.id,
+//             paymentInfo: {
+//                 status: 'created',
+//                 amount: totalAmount,
+//                 updatedAt: new Date()
+//             },
+//         });
+//         await newOrder.save();
+
+//         console.log("Order created with razorpayOrderId:", razorpayOrder.id);
+
+//         // OPTIONAL: Fetch user's email from DB or pass it via frontend
+//         const userEmail = req.body.email; // <-- Ensure this is included in frontend request
+//         if (userEmail) {
+//             try {
+//                 await sendOrderEmail(userEmail, newOrder);
+//                 console.log("Order confirmation email sent to", userEmail);
+//             } catch (emailError) {
+//                 console.error("Failed to send order email:", emailError.message);
+//             }
+//         }
+
+//         res.status(201).json({
+//             message: "Order placed successfully",
+//             orderId: newOrder._id,
+//             razorpayOrderId: razorpayOrder.id,
+//             razorpayOrder,
+//         });
+//     } catch (error) {
+//         console.error("Error placing order:", error);
+//         res.status(500).json({ message: "Server error", error: error.message });
+//     }
+// });
+
+// // 2:
+// Create transporter (reuse from app.js or create here)
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USERNAME,
+        pass: process.env.EMAIL_PASSWORD,
+    },
+});
+
+// Email sending function
+const sendOrderEmail = async (toEmail, orderData) => {
+    const recipients = [toEmail];
+
+    // Also send to company email if it's different from user email
+    if (toEmail !== process.env.EMAIL_USERNAME) {
+        recipients.push(process.env.EMAIL_USERNAME);
+    }
+
+    const { items, totalAmount, _id: orderId, address, phone } = orderData;
+
+    const itemList = items.map(item => `
+        <li>
+            <strong>${item.name}</strong> - Qty: ${item.quantity}, Price: ₹${item.price}
+        </li>
+    `).join('');
+
+    const mailOptions = {
+        from: `"Chauhan Sons Jewellers" <${process.env.EMAIL_USERNAME}>`,
+        to: recipients.join(', '), // Join multiple recipients
+        subject: `🧾 Order Confirmation - Order #${orderId}`,
+        html: `
+            <h2>Thank you for your order!</h2>
+            <p>Your order has been placed successfully.</p>
+            <h3>Order Details:</h3>
+            <ul>${itemList}</ul>
+            <p><strong>Total Amount:</strong> ₹${totalAmount}</p>
+            <p><strong>Shipping Address:</strong> ${address}</p>
+            <p><strong>Phone:</strong> ${phone}</p>
+            <br/>
+            <p>We'll notify you when your order is shipped.</p>
+            <p>Best regards,<br/>Chauhan Sons Jewellers</p>
+        `,
+    };
+
+    return transporter.sendMail(mailOptions);
+};
+
 // Create Order Route
 router.post('/createOrder', async (req, res) => {
-    const { userId, items, address, phone, totalAmount, paymentId } = req.body;
+    const { userId, items, address, phone, totalAmount, paymentId, email } = req.body;
 
-    // Debug log to see what's being received
-    console.log("Received createOrder request:", {
-        userId: !!userId,
-        items: items?.length,
-        address: !!address,
-        phone: !!phone,
-        totalAmount: !!totalAmount,
-        paymentId: !!paymentId
-    });
+    console.log("Creating order:", req.body);
 
-    // Better validation with specific error messages
+    // Validation with specific error messages
     if (!userId) {
         return res.status(400).json({ message: "Missing required field: userId" });
     }
@@ -169,6 +295,9 @@ router.post('/createOrder', async (req, res) => {
     }
     if (!totalAmount) {
         return res.status(400).json({ message: "Missing required field: totalAmount" });
+    }
+    if (!email) {
+        return res.status(400).json({ message: "Missing required field: email" });
     }
 
     try {
@@ -192,22 +321,20 @@ router.post('/createOrder', async (req, res) => {
             paymentInfo: {
                 status: 'created',
                 amount: totalAmount,
-                updatedAt: new Date()
+                updatedAt: new Date(),
             },
         });
         await newOrder.save();
 
         console.log("Order created with razorpayOrderId:", razorpayOrder.id);
 
-        // OPTIONAL: Fetch user's email from DB or pass it via frontend
-        const userEmail = req.body.email; // <-- Ensure this is included in frontend request
-        if (userEmail) {
-            try {
-                await sendOrderEmail(userEmail, newOrder);
-                console.log("Order confirmation email sent to", userEmail);
-            } catch (emailError) {
-                console.error("Failed to send order email:", emailError.message);
-            }
+        // Send order confirmation email
+        try {
+            await sendOrderEmail(email, newOrder);
+            console.log("Order confirmation email sent to", email, "and", process.env.EMAIL_USERNAME);
+        } catch (emailError) {
+            console.error("Failed to send order email:", emailError.message);
+            // Don't fail the order creation, but log the error
         }
 
         res.status(201).json({
@@ -221,6 +348,8 @@ router.post('/createOrder', async (req, res) => {
         res.status(500).json({ message: "Server error", error: error.message });
     }
 });
+
+
 
 // Enhanced payment status route with better error handling
 router.get('/paymentStatus/:orderId', async (req, res) => {
