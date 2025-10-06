@@ -132,6 +132,7 @@ const router = express.Router();
 const Order = require('../models/order');
 const { logger } = require("../utils/logger");
 const Razorpay = require('razorpay');
+const sendOrderEmail = require('../utils/sendOrderEmail');
 
 // Initialize Razorpay instance
 const razorpayInstance = new Razorpay({
@@ -197,6 +198,17 @@ router.post('/createOrder', async (req, res) => {
         await newOrder.save();
 
         console.log("Order created with razorpayOrderId:", razorpayOrder.id);
+
+        // OPTIONAL: Fetch user's email from DB or pass it via frontend
+        const userEmail = req.body.email; // <-- Ensure this is included in frontend request
+        if (userEmail) {
+            try {
+                await sendOrderEmail(userEmail, newOrder);
+                console.log("Order confirmation email sent to", userEmail);
+            } catch (emailError) {
+                console.error("Failed to send order email:", emailError.message);
+            }
+        }
 
         res.status(201).json({
             message: "Order placed successfully",
@@ -324,7 +336,7 @@ router.post('/capturePayment/:orderId', async (req, res) => {
         // Capture the payment
         const captureAmount = amount ? amount * 100 : order.totalAmount * 100;
         const capturedPayment = await razorpayInstance.payments.capture(
-            order.paymentInfo.paymentId, 
+            order.paymentInfo.paymentId,
             captureAmount,
             "INR"
         );
@@ -420,7 +432,7 @@ router.get('/orders/:userId', async (req, res) => {
                     try {
                         const payments = await razorpayInstance.orders.fetchPayments(order.razorpayOrderId);
                         const latestPayment = payments.items.length ? payments.items[0] : null;
-                        
+
                         if (latestPayment) {
                             order.paymentInfo = {
                                 paymentId: latestPayment.id,
@@ -473,7 +485,7 @@ router.get('/orders', async (req, res) => {
 
     try {
         const orders = await Order.find().sort({ createdAt: -1 });
-        
+
         // Fetch live payment status for all orders
         const ordersWithLiveStatus = await Promise.all(
             orders.map(async (order) => {
@@ -481,7 +493,7 @@ router.get('/orders', async (req, res) => {
                     try {
                         const payments = await razorpayInstance.orders.fetchPayments(order.razorpayOrderId);
                         const latestPayment = payments.items.length ? payments.items[0] : null;
-                        
+
                         if (latestPayment) {
                             order.paymentInfo = {
                                 paymentId: latestPayment.id,
@@ -498,7 +510,7 @@ router.get('/orders', async (req, res) => {
                 return order;
             })
         );
-        
+
         logger.info("Fetched all orders with live payment status", { totalOrders: orders.length });
         res.status(200).json({ orders: ordersWithLiveStatus });
     } catch (error) {
@@ -546,7 +558,7 @@ router.put('/orders/:orderId/status', async (req, res) => {
             try {
                 const payments = await razorpayInstance.orders.fetchPayments(order.razorpayOrderId);
                 const latestPayment = payments.items.length ? payments.items[0] : null;
-                
+
                 if (latestPayment) {
                     order.paymentInfo = {
                         paymentId: latestPayment.id,
@@ -588,8 +600,8 @@ router.put('/orders/:orderId/status', async (req, res) => {
 
         logger.info("Order status updated successfully", { orderId, status });
 
-        res.status(200).json({ 
-            message: "Order status updated", 
+        res.status(200).json({
+            message: "Order status updated",
             order: updatedOrder,
             refundProcessed: status === 'Cancelled' ? true : false
         });
@@ -615,7 +627,7 @@ async function processAutomaticRefund(order, cancelReason) {
         if (order.paymentInfo.status === 'authorized') {
             try {
                 await razorpayInstance.payments.capture(
-                    order.paymentInfo.paymentId, 
+                    order.paymentInfo.paymentId,
                     order.totalAmount * 100,
                     "INR"
                 );
@@ -655,18 +667,18 @@ async function processAutomaticRefund(order, cancelReason) {
             notes: `Refund processed automatically due to order cancellation. Expected settlement in ${estimatedDays} business days.`
         };
 
-        logger.info("Automatic refund processed", { 
-            orderId: order._id, 
-            refundId: refund.id, 
-            amount: refund.amount / 100 
+        logger.info("Automatic refund processed", {
+            orderId: order._id,
+            refundId: refund.id,
+            amount: refund.amount / 100
         });
 
         return { success: true, refundInfo };
 
     } catch (error) {
-        logger.error("Error processing automatic refund", { 
-            orderId: order._id, 
-            error: error.message 
+        logger.error("Error processing automatic refund", {
+            orderId: order._id,
+            error: error.message
         });
         return { success: false, reason: error.message };
     }
@@ -695,7 +707,7 @@ router.post('/orders/:orderId/refund', async (req, res) => {
         if (order.paymentInfo.status === 'authorized') {
             try {
                 await razorpayInstance.payments.capture(
-                    order.paymentInfo.paymentId, 
+                    order.paymentInfo.paymentId,
                     order.totalAmount * 100,
                     "INR"
                 );
@@ -737,10 +749,10 @@ router.post('/orders/:orderId/refund', async (req, res) => {
         order.status = 'Cancelled';
         await order.save();
 
-        logger.info("Manual refund processed", { 
-            orderId, 
-            refundId: refund.id, 
-            amount: refund.amount / 100 
+        logger.info("Manual refund processed", {
+            orderId,
+            refundId: refund.id,
+            amount: refund.amount / 100
         });
 
         res.status(200).json({
@@ -765,9 +777,9 @@ router.get('/orders/:orderId/refund-status', async (req, res) => {
         }
 
         if (!order.refundInfo?.refundId) {
-            return res.status(200).json({ 
+            return res.status(200).json({
                 message: "No refund found for this order",
-                refundInfo: null 
+                refundInfo: null
             });
         }
 
