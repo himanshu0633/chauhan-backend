@@ -328,6 +328,12 @@ router.post('/createOrder', async (req, res) => {
 
         console.log("Order created with razorpayOrderId:", razorpayOrder.id);
 
+        // ADD THESE DEBUG LINES:
+        console.log("🔍 About to send email...");
+        console.log("📧 Email to:", email);
+        console.log("📦 Order data:", newOrder);
+        console.log("✅ sendOrderEmail function exists?", typeof sendOrderEmail === 'function');
+
         // Send order confirmation email
         try {
             await sendOrderEmail(email, newOrder);
@@ -348,8 +354,6 @@ router.post('/createOrder', async (req, res) => {
         res.status(500).json({ message: "Server error", error: error.message });
     }
 });
-
-
 
 // Enhanced payment status route with better error handling
 router.get('/paymentStatus/:orderId', async (req, res) => {
