@@ -236,7 +236,45 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-// Email sending function
+// // 1: Email sending function with simple ui
+// const sendOrderEmail = async (toEmail, orderData) => {
+//     const recipients = [toEmail];
+
+//     // Also send to company email if it's different from user email
+//     if (toEmail !== process.env.EMAIL_USERNAME) {
+//         recipients.push(process.env.EMAIL_USERNAME);
+//     }
+
+//     const { items, totalAmount, _id: orderId, address, phone } = orderData;
+
+//     const itemList = items.map(item => `
+//         <li>
+//             <strong>${item.name}</strong> - Qty: ${item.quantity}, Price: ₹${item.price}
+//         </li>
+//     `).join('');
+
+//     const mailOptions = {
+//         from: `"Chauhan Sons Jewellers" <${process.env.EMAIL_USERNAME}>`,
+//         to: recipients.join(', '), // Join multiple recipients
+//         subject: `🧾 Order Confirmation - Order #${orderId}`,
+//         html: `
+//             <h2>Thank you for your order!</h2>
+//             <p>Your order has been placed successfully.</p>
+//             <h3>Order Details:</h3>
+//             <ul>${itemList}</ul>
+//             <p><strong>Total Amount:</strong> ₹${totalAmount}</p>
+//             <p><strong>Shipping Address:</strong> ${address}</p>
+//             <p><strong>Phone:</strong> ${phone}</p>
+//             <br/>
+//             <p>We'll notify you when your order is shipped.</p>
+//             <p>Best regards,<br/>Chauhan Sons Jewellers</p>
+//         `,
+//     };
+
+//     return transporter.sendMail(mailOptions);
+// };
+
+// // 2: Refactored email sending function
 const sendOrderEmail = async (toEmail, orderData) => {
     const recipients = [toEmail];
 
@@ -245,29 +283,205 @@ const sendOrderEmail = async (toEmail, orderData) => {
         recipients.push(process.env.EMAIL_USERNAME);
     }
 
-    const { items, totalAmount, _id: orderId, address, phone } = orderData;
+    const { items, totalAmount, _id: orderId, address, phone, createdAt } = orderData;
 
-    const itemList = items.map(item => `
-        <li>
-            <strong>${item.name}</strong> - Qty: ${item.quantity}, Price: ₹${item.price}
-        </li>
+    // Format date
+    const orderDate = new Date(createdAt || Date.now()).toLocaleDateString('en-IN', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+
+    // Calculate subtotal and format items
+    const itemsHTML = items.map((item, index) => `
+        <tr style="border-bottom: 1px solid #eee;">
+            <td style="padding: 15px 10px; vertical-align: top;">
+                <div style="font-weight: 600; color: #333; margin-bottom: 4px;">${item.name}</div>
+                <div style="font-size: 13px; color: #666;">Quantity: ${item.quantity}</div>
+            </td>
+            <td style="padding: 15px 10px; text-align: right; vertical-align: top; font-weight: 600; color: #333;">
+                ₹${item.price.toLocaleString('en-IN')}
+            </td>
+        </tr>
     `).join('');
 
     const mailOptions = {
         from: `"Chauhan Sons Jewellers" <${process.env.EMAIL_USERNAME}>`,
-        to: recipients.join(', '), // Join multiple recipients
-        subject: `🧾 Order Confirmation - Order #${orderId}`,
+        to: recipients.join(', '),
+        subject: `Order Confirmed - #${orderId}`,
         html: `
-            <h2>Thank you for your order!</h2>
-            <p>Your order has been placed successfully.</p>
-            <h3>Order Details:</h3>
-            <ul>${itemList}</ul>
-            <p><strong>Total Amount:</strong> ₹${totalAmount}</p>
-            <p><strong>Shipping Address:</strong> ${address}</p>
-            <p><strong>Phone:</strong> ${phone}</p>
-            <br/>
-            <p>We'll notify you when your order is shipped.</p>
-            <p>Best regards,<br/>Chauhan Sons Jewellers</p>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Confirmation</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f5f5;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 20px 0;">
+        <tr>
+            <td align="center">
+                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; max-width: 600px; width: 100%;">
+                    
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #7d2a25 0%, #5a1f1a 100%); padding: 30px; text-align: center;">
+                            <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;">Chauhan Sons Jewellers</h1>
+                            <p style="margin: 8px 0 0 0; color: #f0d4b0; font-size: 14px; letter-spacing: 1px;">FINE JEWELRY SINCE 1969</p>
+                        </td>
+                    </tr>
+
+                    <!-- Success Message -->
+                    <tr>
+                        <td style="padding: 40px 30px 30px; text-align: center; border-bottom: 3px solid #7d2a25;">
+                            <div style="display: inline-block; background-color: #e8f5e9; border-radius: 50%; width: 60px; height: 60px; line-height: 60px; margin-bottom: 20px;">
+                                <span style="color: #2e7d32; font-size: 32px;">✓</span>
+                            </div>
+                            <h2 style="margin: 0 0 10px 0; color: #2e7d32; font-size: 24px; font-weight: 600;">Order Confirmed!</h2>
+                            <p style="margin: 0; color: #666; font-size: 15px;">Thank you for your purchase. Your order has been received and is being processed.</p>
+                        </td>
+                    </tr>
+
+                    <!-- Order Info -->
+                    <tr>
+                        <td style="padding: 30px;">
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td style="padding-bottom: 20px;">
+                                        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9f9f9; border-radius: 8px; padding: 20px;">
+                                            <tr>
+                                                <td style="width: 50%; padding: 10px;">
+                                                    <div style="font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;">Order Number</div>
+                                                    <div style="font-size: 16px; color: #333; font-weight: 600;">#${orderId}</div>
+                                                </td>
+                                                <td style="width: 50%; padding: 10px; text-align: right;">
+                                                    <div style="font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;">Order Date</div>
+                                                    <div style="font-size: 16px; color: #333; font-weight: 600;">${orderDate}</div>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Order Items -->
+                            <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 20px; border: 1px solid #eee; border-radius: 8px; overflow: hidden;">
+                                <thead>
+                                    <tr style="background-color: #f9f9f9;">
+                                        <th style="padding: 15px 10px; text-align: left; font-size: 13px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Item</th>
+                                        <th style="padding: 15px 10px; text-align: right; font-size: 13px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Price</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${itemsHTML}
+                                </tbody>
+                            </table>
+
+                            <!-- Order Summary -->
+                            <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 20px;">
+                                <tr>
+                                    <td style="padding: 15px 0; border-top: 2px solid #eee;">
+                                        <table width="100%" cellpadding="0" cellspacing="0">
+                                            <tr>
+                                                <td style="padding: 8px 0; color: #666; font-size: 15px;">Subtotal</td>
+                                                <td style="padding: 8px 0; text-align: right; color: #333; font-size: 15px; font-weight: 500;">₹${totalAmount.toLocaleString('en-IN')}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 8px 0; color: #666; font-size: 15px;">Shipping</td>
+                                                <td style="padding: 8px 0; text-align: right; color: #2e7d32; font-size: 15px; font-weight: 600;">FREE</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 15px 0 0 0; color: #333; font-size: 18px; font-weight: 700; border-top: 2px solid #7d2a25;">Order Total</td>
+                                                <td style="padding: 15px 0 0 0; text-align: right; color: #7d2a25; font-size: 20px; font-weight: 700; border-top: 2px solid #7d2a25;">₹${totalAmount.toLocaleString('en-IN')}</td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Delivery Info -->
+                            <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 30px;">
+                                <tr>
+                                    <td>
+                                        <div style="background-color: #f9f9f9; border-radius: 8px; padding: 20px; border-left: 4px solid #7d2a25;">
+                                            <h3 style="margin: 0 0 15px 0; color: #333; font-size: 16px; font-weight: 600;">Delivery Address</h3>
+                                            <p style="margin: 0 0 8px 0; color: #666; font-size: 14px; line-height: 1.6;">${address}</p>
+                                            <p style="margin: 0; color: #666; font-size: 14px;">
+                                                <strong style="color: #333;">Contact:</strong> ${phone}
+                                            </p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- What's Next -->
+                            <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 30px;">
+                                <tr>
+                                    <td>
+                                        <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px; font-weight: 600;">What happens next?</h3>
+                                        <table width="100%" cellpadding="0" cellspacing="0">
+                                            <tr>
+                                                <td style="padding: 12px 0; vertical-align: top; width: 30px;">
+                                                    <div style="background-color: #7d2a25; color: #fff; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; font-size: 12px; font-weight: 600;">1</div>
+                                                </td>
+                                                <td style="padding: 12px 0; color: #666; font-size: 14px; line-height: 1.6;">
+                                                    We'll send you a shipping confirmation email with tracking details
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 12px 0; vertical-align: top;">
+                                                    <div style="background-color: #7d2a25; color: #fff; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; font-size: 12px; font-weight: 600;">2</div>
+                                                </td>
+                                                <td style="padding: 12px 0; color: #666; font-size: 14px; line-height: 1.6;">
+                                                    Your order will be carefully packaged and shipped
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 12px 0; vertical-align: top;">
+                                                    <div style="background-color: #7d2a25; color: #fff; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; font-size: 12px; font-weight: 600;">3</div>
+                                                </td>
+                                                <td style="padding: 12px 0; color: #666; font-size: 14px; line-height: 1.6;">
+                                                    Enjoy your beautiful jewelry from Chauhan Sons!
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- CTA Button -->
+                            <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 30px;">
+                                <tr>
+                                    <td align="center">
+                                        <a href="https://chauhansonsjewellers.com" style="display: inline-block; background: linear-gradient(135deg, #7d2a25 0%, #5a1f1a 100%); color: #ffffff; text-decoration: none; padding: 14px 40px; border-radius: 6px; font-weight: 600; font-size: 15px; letter-spacing: 0.5px;">View Order Status</a>
+                                    </td>
+                                </tr>
+                            </table>
+
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f9f9f9; padding: 30px; text-align: center; border-top: 1px solid #eee;">
+                            <p style="margin: 0 0 10px 0; color: #666; font-size: 14px;">Need help with your order?</p>
+                            <p style="margin: 0 0 15px 0;">
+                                <a href="mailto:chauhansons69@yahoo.com" style="color: #7d2a25; text-decoration: none; font-weight: 600;">Contact Customer Support</a>
+                            </p>
+                            <div style="margin: 20px 0; padding-top: 20px; border-top: 1px solid #ddd;">
+                                <p style="margin: 0 0 8px 0; color: #999; font-size: 12px;">Chauhan Sons Jewellers</p>
+                                <p style="margin: 0; color: #999; font-size: 12px;">© ${new Date().getFullYear()} All rights reserved</p>
+                            </div>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
         `,
     };
 
@@ -325,14 +539,6 @@ router.post('/createOrder', async (req, res) => {
             },
         });
         await newOrder.save();
-
-        console.log("Order created with razorpayOrderId:", razorpayOrder.id);
-
-        // ADD THESE DEBUG LINES:
-        console.log("🔍 About to send email...");
-        console.log("📧 Email to:", email);
-        console.log("📦 Order data:", newOrder);
-        console.log("✅ sendOrderEmail function exists?", typeof sendOrderEmail === 'function');
 
         // Send order confirmation email
         try {
