@@ -1165,6 +1165,786 @@
 
 
 // //3:
+// const express = require('express');
+// const router = express.Router();
+// const Order = require('../models/order');
+// const { logger } = require("../utils/logger");
+// const Razorpay = require('razorpay');
+// const nodemailer = require('nodemailer');
+
+// const razorpay = new Razorpay({
+//     key_id: process.env.RAZORPAY_KEY_ID,
+//     key_secret: process.env.RAZORPAY_KEY_SECRET,
+// });
+
+// const transporter = nodemailer.createTransport({
+//     service: 'gmail',
+//     auth: {
+//         user: process.env.EMAIL_USERNAME,
+//         pass: process.env.EMAIL_PASSWORD,
+//     },
+// });
+
+// // Rate limiting for live API calls (to stay within free limits)
+// const rateLimiter = {
+//     calls: [],
+//     maxCallsPerHour: 1800, // Stay under 2000 limit
+
+//     canMakeCall() {
+//         const now = Date.now();
+//         const oneHourAgo = now - 3600000;
+
+//         // Remove calls older than 1 hour
+//         this.calls = this.calls.filter(time => time > oneHourAgo);
+
+//         if (this.calls.length >= this.maxCallsPerHour) {
+//             logger.warn('Rate limit reached for Razorpay API calls');
+//             return false;
+//         }
+
+//         this.calls.push(now);
+//         return true;
+//     },
+
+//     getRemainingCalls() {
+//         const now = Date.now();
+//         const oneHourAgo = now - 3600000;
+//         this.calls = this.calls.filter(time => time > oneHourAgo);
+//         return this.maxCallsPerHour - this.calls.length;
+//     }
+// };
+
+// // Email function 
+// const sendOrderEmail = async (toEmail, orderData) => {
+//     const recipients = [toEmail];
+
+//     // Also send to company email if it's different from user email
+//     if (toEmail !== process.env.EMAIL_USERNAME) {
+//         recipients.push(process.env.EMAIL_USERNAME);
+//     }
+
+//     const { items, totalAmount, _id: orderId, address, phone, createdAt } = orderData;
+
+//     // Format date
+//     const orderDate = new Date(createdAt || Date.now()).toLocaleDateString('en-IN', {
+//         weekday: 'long',
+//         year: 'numeric',
+//         month: 'long',
+//         day: 'numeric'
+//     });
+
+//     // Calculate subtotal and format items
+//     const itemsHTML = items.map((item, index) => `
+//         <tr style="border-bottom: 1px solid #eee;">
+//             <td style="padding: 15px 10px; vertical-align: top;">
+//                 <div style="font-weight: 600; color: #333; margin-bottom: 4px;">${item.name}</div>
+//                 <div style="font-size: 13px; color: #666;">Quantity: ${item.quantity}</div>
+//             </td>
+//             <td style="padding: 15px 10px; text-align: right; vertical-align: top; font-weight: 600; color: #333;">
+//                 ₹${item.price.toLocaleString('en-IN')}
+//             </td>
+//         </tr>
+//     `).join('');
+
+//     const mailOptions = {
+//         from: `"Chauhan Sons Jewellers" <${process.env.EMAIL_USERNAME}>`,
+//         to: recipients.join(', '),
+//         subject: `Order Confirmed - #${orderId}`,
+//         html: `
+// <!DOCTYPE html>
+// <html>
+// <head>
+//     <meta charset="UTF-8">
+//     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+//     <title>Order Confirmation</title>
+// </head>
+// <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f5f5;">
+//     <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 20px 0;">
+//         <tr>
+//             <td align="center">
+//                 <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; max-width: 600px; width: 100%;">
+                    
+//                     <!-- Header -->
+//                     <tr>
+//                         <td style="background: linear-gradient(135deg, #7d2a25 0%, #5a1f1a 100%); padding: 30px; text-align: center;">
+//                             <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;">Chauhan Sons Jewellers</h1>
+//                             <p style="margin: 8px 0 0 0; color: #f0d4b0; font-size: 14px; letter-spacing: 1px;">FINE JEWELRY SINCE 1969</p>
+//                         </td>
+//                     </tr>
+
+//                     <!-- Success Message -->
+//                     <tr>
+//                         <td style="padding: 40px 30px 30px; text-align: center; border-bottom: 3px solid #7d2a25;">
+//                             <div style="display: inline-block; background-color: #e8f5e9; border-radius: 50%; width: 60px; height: 60px; line-height: 60px; margin-bottom: 20px;">
+//                                 <span style="color: #2e7d32; font-size: 32px;">✓</span>
+//                             </div>
+//                             <h2 style="margin: 0 0 10px 0; color: #2e7d32; font-size: 24px; font-weight: 600;">Order Confirmed!</h2>
+//                             <p style="margin: 0; color: #666; font-size: 15px;">Thank you for your purchase. Your order has been received and is being processed.</p>
+//                         </td>
+//                     </tr>
+
+//                     <!-- Order Info -->
+//                     <tr>
+//                         <td style="padding: 30px;">
+//                             <table width="100%" cellpadding="0" cellspacing="0">
+//                                 <tr>
+//                                     <td style="padding-bottom: 20px;">
+//                                         <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9f9f9; border-radius: 8px; padding: 20px;">
+//                                             <tr>
+//                                                 <td style="width: 50%; padding: 10px;">
+//                                                     <div style="font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;">Order Number</div>
+//                                                     <div style="font-size: 16px; color: #333; font-weight: 600;">#${orderId}</div>
+//                                                 </td>
+//                                                 <td style="width: 50%; padding: 10px; text-align: right;">
+//                                                     <div style="font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;">Order Date</div>
+//                                                     <div style="font-size: 16px; color: #333; font-weight: 600;">${orderDate}</div>
+//                                                 </td>
+//                                             </tr>
+//                                         </table>
+//                                     </td>
+//                                 </tr>
+//                             </table>
+
+//                             <!-- Order Items -->
+//                             <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 20px; border: 1px solid #eee; border-radius: 8px; overflow: hidden;">
+//                                 <thead>
+//                                     <tr style="background-color: #f9f9f9;">
+//                                         <th style="padding: 15px 10px; text-align: left; font-size: 13px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Item</th>
+//                                         <th style="padding: 15px 10px; text-align: right; font-size: 13px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Price</th>
+//                                     </tr>
+//                                 </thead>
+//                                 <tbody>
+//                                     ${itemsHTML}
+//                                 </tbody>
+//                             </table>
+
+//                             <!-- Order Summary -->
+//                             <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 20px;">
+//                                 <tr>
+//                                     <td style="padding: 15px 0; border-top: 2px solid #eee;">
+//                                         <table width="100%" cellpadding="0" cellspacing="0">
+//                                             <tr>
+//                                                 <td style="padding: 8px 0; color: #666; font-size: 15px;">Subtotal</td>
+//                                                 <td style="padding: 8px 0; text-align: right; color: #333; font-size: 15px; font-weight: 500;">₹${totalAmount.toLocaleString('en-IN')}</td>
+//                                             </tr>
+//                                             <tr>
+//                                                 <td style="padding: 8px 0; color: #666; font-size: 15px;">Shipping</td>
+//                                                 <td style="padding: 8px 0; text-align: right; color: #2e7d32; font-size: 15px; font-weight: 600;">FREE</td>
+//                                             </tr>
+//                                             <tr>
+//                                                 <td style="padding: 15px 0 0 0; color: #333; font-size: 18px; font-weight: 700; border-top: 2px solid #7d2a25;">Order Total</td>
+//                                                 <td style="padding: 15px 0 0 0; text-align: right; color: #7d2a25; font-size: 20px; font-weight: 700; border-top: 2px solid #7d2a25;">₹${totalAmount.toLocaleString('en-IN')}</td>
+//                                             </tr>
+//                                         </table>
+//                                     </td>
+//                                 </tr>
+//                             </table>
+
+//                             <!-- Delivery Info -->
+//                             <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 30px;">
+//                                 <tr>
+//                                     <td>
+//                                         <div style="background-color: #f9f9f9; border-radius: 8px; padding: 20px; border-left: 4px solid #7d2a25;">
+//                                             <h3 style="margin: 0 0 15px 0; color: #333; font-size: 16px; font-weight: 600;">Delivery Address</h3>
+//                                             <p style="margin: 0 0 8px 0; color: #666; font-size: 14px; line-height: 1.6;">${address}</p>
+//                                             <p style="margin: 0; color: #666; font-size: 14px;">
+//                                                 <strong style="color: #333;">Contact:</strong> ${phone}
+//                                             </p>
+//                                         </div>
+//                                     </td>
+//                                 </tr>
+//                             </table>
+
+//                             <!-- What's Next -->
+//                             <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 30px;">
+//                                 <tr>
+//                                     <td>
+//                                         <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px; font-weight: 600;">What happens next?</h3>
+//                                         <table width="100%" cellpadding="0" cellspacing="0">
+//                                             <tr>
+//                                                 <td style="padding: 12px 0; vertical-align: top; width: 30px;">
+//                                                     <div style="background-color: #7d2a25; color: #fff; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; font-size: 12px; font-weight: 600;">1</div>
+//                                                 </td>
+//                                                 <td style="padding: 12px 0; color: #666; font-size: 14px; line-height: 1.6;">
+//                                                     We'll send you a shipping confirmation email with tracking details
+//                                                 </td>
+//                                             </tr>
+//                                             <tr>
+//                                                 <td style="padding: 12px 0; vertical-align: top;">
+//                                                     <div style="background-color: #7d2a25; color: #fff; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; font-size: 12px; font-weight: 600;">2</div>
+//                                                 </td>
+//                                                 <td style="padding: 12px 0; color: #666; font-size: 14px; line-height: 1.6;">
+//                                                     Your order will be carefully packaged and shipped
+//                                                 </td>
+//                                             </tr>
+//                                             <tr>
+//                                                 <td style="padding: 12px 0; vertical-align: top;">
+//                                                     <div style="background-color: #7d2a25; color: #fff; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; font-size: 12px; font-weight: 600;">3</div>
+//                                                 </td>
+//                                                 <td style="padding: 12px 0; color: #666; font-size: 14px; line-height: 1.6;">
+//                                                     Enjoy your beautiful jewelry from Chauhan Sons!
+//                                                 </td>
+//                                             </tr>
+//                                         </table>
+//                                     </td>
+//                                 </tr>
+//                             </table>
+
+//                             <!-- CTA Button -->
+//                             <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 30px;">
+//                                 <tr>
+//                                     <td align="center">
+//                                         <a href="https://chauhansonsjewellers.com" style="display: inline-block; background: linear-gradient(135deg, #7d2a25 0%, #5a1f1a 100%); color: #ffffff; text-decoration: none; padding: 14px 40px; border-radius: 6px; font-weight: 600; font-size: 15px; letter-spacing: 0.5px;">View Order Status</a>
+//                                     </td>
+//                                 </tr>
+//                             </table>
+
+//                         </td>
+//                     </tr>
+
+//                     <!-- Footer -->
+//                     <tr>
+//                         <td style="background-color: #f9f9f9; padding: 30px; text-align: center; border-top: 1px solid #eee;">
+//                             <p style="margin: 0 0 10px 0; color: #666; font-size: 14px;">Need help with your order?</p>
+//                             <p style="margin: 0 0 15px 0;">
+//                                 <a href="mailto:chauhansons69@yahoo.com" style="color: #7d2a25; text-decoration: none; font-weight: 600;">Contact Customer Support</a>
+//                             </p>
+//                             <div style="margin: 20px 0; padding-top: 20px; border-top: 1px solid #ddd;">
+//                                 <p style="margin: 0 0 8px 0; color: #999; font-size: 12px;">Chauhan Sons Jewellers</p>
+//                                 <p style="margin: 0; color: #999; font-size: 12px;">© ${new Date().getFullYear()} All rights reserved</p>
+//                             </div>
+//                         </td>
+//                     </tr>
+
+//                 </table>
+//             </td>
+//         </tr>
+//     </table>
+// </body>
+// </html>
+//         `,
+//     };
+
+//     return transporter.sendMail(mailOptions);
+// };
+
+// // ============================================
+// // 1. CREATE ORDER
+// // ============================================
+// router.post('/createOrder', async (req, res) => {
+//     const { userId, items, address, phone, totalAmount, email } = req.body;
+
+//     if (!userId || !items?.length || !address || !phone || !totalAmount || !email) {
+//         return res.status(400).json({ message: "Missing required fields" });
+//     }
+
+//     try {
+//         const razorpayOrder = await razorpay.orders.create({
+//             amount: totalAmount * 100,
+//             currency: "INR",
+//             receipt: `order_${Date.now()}`,
+//             payment_capture: 1,
+//         });
+
+//         const newOrder = new Order({
+//             userId,
+//             items,
+//             address,
+//             phone,
+//             totalAmount,
+//             razorpayOrderId: razorpayOrder.id,
+//             status: 'Pending',
+//             paymentInfo: {
+//                 status: 'created',
+//                 amount: totalAmount,
+//                 updatedAt: new Date(),
+//             },
+//         });
+
+//         await newOrder.save();
+
+//         sendOrderEmail(email, newOrder).catch(err =>
+//             logger.error("Email failed:", err.message)
+//         );
+
+//         res.status(201).json({
+//             message: "Order created successfully",
+//             orderId: newOrder._id,
+//             razorpayOrderId: razorpayOrder.id,
+//             razorpayKeyId: process.env.RAZORPAY_KEY_ID,
+//         });
+//     } catch (error) {
+//         logger.error("Order creation failed:", error);
+//         res.status(500).json({ message: "Failed to create order", error: error.message });
+//     }
+// });
+
+// // ============================================
+// // 2. GET USER ORDERS (Fast - From Database)
+// // ============================================
+// router.get('/orders/user/:userId', async (req, res) => {
+//     const { userId } = req.params;
+
+//     try {
+//         const orders = await Order.find({ userId })
+//             .sort({ createdAt: -1 })
+//             .select('-__v');
+
+//         res.status(200).json({
+//             orders,
+//             source: 'database',
+//             message: 'Data from webhooks. Click refresh for live status.',
+//             totalCount: orders.length
+//         });
+//     } catch (error) {
+//         logger.error("Error fetching user orders:", error);
+//         res.status(500).json({ message: "Server error", error: error.message });
+//     }
+// });
+
+// // ============================================
+// // 3. GET ALL ORDERS - Admin (Fast - From Database)
+// // ============================================
+// router.get('/orders', async (req, res) => {
+//     try {
+//         const orders = await Order.find()
+//             .sort({ createdAt: -1 })
+//             .select('-__v');
+
+//         res.status(200).json({
+//             orders,
+//             source: 'database',
+//             message: 'Data from webhooks. Click refresh for live status.',
+//             totalCount: orders.length
+//         });
+//     } catch (error) {
+//         logger.error("Error fetching all orders:", error);
+//         res.status(500).json({ message: "Server error", error: error.message });
+//     }
+// });
+
+// // ============================================
+// // 4. SYNC SINGLE ORDER WITH RAZORPAY (On-demand)
+// // ============================================
+// // //1:
+// // router.post('/orders/:orderId/sync', async (req, res) => {
+// //     const { orderId } = req.params;
+
+// //     // Check rate limit
+// //     if (!rateLimiter.canMakeCall()) {
+// //         return res.status(429).json({
+// //             message: "Rate limit reached. Please try again later.",
+// //             remainingCalls: rateLimiter.getRemainingCalls()
+// //         });
+// //     }
+
+// //     try {
+// //         const order = await Order.findById(orderId);
+// //         if (!order) {
+// //             return res.status(404).json({ message: "Order not found" });
+// //         }
+
+// //         const syncResult = {
+// //             orderId: order._id,
+// //             previousStatus: {
+// //                 order: order.status,
+// //                 payment: order.paymentInfo?.status,
+// //                 refund: order.refundInfo?.status
+// //             },
+// //             updated: false,
+// //             changes: []
+// //         };
+
+// //         // 1. Sync Payment Status
+// //         if (order.razorpayOrderId) {
+// //             try {
+// //                 const payments = await razorpay.orders.fetchPayments(order.razorpayOrderId);
+
+// //                 if (payments.items && payments.items.length > 0) {
+// //                     const latestPayment = payments.items[0];
+
+// //                     // Update only if status changed
+// //                     if (order.paymentInfo?.status !== latestPayment.status) {
+// //                         order.paymentInfo = {
+// //                             paymentId: latestPayment.id,
+// //                             amount: latestPayment.amount / 100,
+// //                             status: latestPayment.status,
+// //                             method: latestPayment.method,
+// //                             updatedAt: new Date()
+// //                         };
+// //                         syncResult.updated = true;
+// //                         syncResult.changes.push('payment_status_updated');
+// //                     }
+
+// //                     // 2. Sync Refund Status (if payment is captured)
+// //                     if (latestPayment.status === 'captured' && order.refundInfo?.refundId) {
+// //                         try {
+// //                             const refund = await razorpay.refunds.fetch(order.refundInfo.refundId);
+
+// //                             if (order.refundInfo.status !== refund.status) {
+// //                                 order.refundInfo.status = refund.status;
+
+// //                                 if (refund.status === 'processed') {
+// //                                     order.refundInfo.processedAt = new Date();
+// //                                     order.status = 'Refunded';
+// //                                     syncResult.changes.push('refund_processed');
+// //                                 }
+
+// //                                 syncResult.updated = true;
+// //                                 syncResult.changes.push('refund_status_updated');
+// //                             }
+// //                         } catch (refundError) {
+// //                             logger.error('Failed to sync refund:', refundError.message);
+// //                         }
+// //                     }
+// //                 }
+// //             } catch (paymentError) {
+// //                 logger.error('Failed to sync payment:', paymentError.message);
+// //                 return res.status(500).json({
+// //                     message: "Failed to sync with Razorpay",
+// //                     error: paymentError.message
+// //                 });
+// //             }
+// //         }
+
+// //         if (syncResult.updated) {
+// //             await order.save();
+// //         }
+
+// //         syncResult.currentStatus = {
+// //             order: order.status,
+// //             payment: order.paymentInfo?.status,
+// //             refund: order.refundInfo?.status
+// //         };
+
+// //         res.status(200).json({
+// //             message: syncResult.updated ? "Order synced with Razorpay" : "Order already up to date",
+// //             ...syncResult,
+// //             remainingApiCalls: rateLimiter.getRemainingCalls()
+// //         });
+
+// //     } catch (error) {
+// //         logger.error("Error syncing order:", error);
+// //         res.status(500).json({ message: "Sync failed", error: error.message });
+// //     }
+// // });
+
+// // //2:
+// router.post('/orders/:orderId/sync', async (req, res) => {
+//     const { orderId } = req.params;
+
+//     console.log('=== DEBUG: Syncing order:', orderId);
+
+//     try {
+//         const order = await Order.findById(orderId);
+
+//         if (!order) {
+//             console.log('ERROR: Order not found:', orderId);
+//             return res.status(404).json({ message: "Order not found" });
+//         }
+
+//         console.log('Order found:', {
+//             orderId: order._id,
+//             razorpayOrderId: order.razorpayOrderId,
+//             currentPaymentStatus: order.paymentInfo?.status,
+//             currentRefundStatus: order.refundInfo?.status
+//         });
+
+//         const syncResult = {
+//             orderId: order._id,
+//             previousStatus: {
+//                 order: order.status,
+//                 payment: order.paymentInfo?.status,
+//                 refund: order.refundInfo?.status
+//             },
+//             updated: false,
+//             changes: []
+//         };
+
+//         // Sync Payment Status
+//         if (order.razorpayOrderId) {
+//             try {
+//                 console.log('Fetching payments from Razorpay...');
+//                 const payments = await razorpay.orders.fetchPayments(order.razorpayOrderId);
+
+//                 console.log('Razorpay response:', {
+//                     count: payments.items?.length || 0,
+//                     payments: payments.items?.map(p => ({
+//                         id: p.id,
+//                         status: p.status,
+//                         amount: p.amount
+//                     }))
+//                 });
+
+//                 if (payments.items && payments.items.length > 0) {
+//                     const latestPayment = payments.items[0];
+
+//                     // Update only if status changed
+//                     if (order.paymentInfo?.status !== latestPayment.status) {
+//                         order.paymentInfo = {
+//                             paymentId: latestPayment.id,
+//                             amount: latestPayment.amount / 100,
+//                             status: latestPayment.status,
+//                             method: latestPayment.method,
+//                             updatedAt: new Date()
+//                         };
+//                         syncResult.updated = true;
+//                         syncResult.changes.push('payment_status_updated');
+//                         console.log('Payment status updated:', latestPayment.status);
+//                     }
+
+//                     // Sync Refund Status
+//                     if (latestPayment.status === 'captured' && order.refundInfo?.refundId) {
+//                         try {
+//                             console.log('Fetching refund:', order.refundInfo.refundId);
+//                             const refund = await razorpay.refunds.fetch(order.refundInfo.refundId);
+
+//                             console.log('Refund status from Razorpay:', refund.status);
+
+//                             if (order.refundInfo.status !== refund.status) {
+//                                 order.refundInfo.status = refund.status;
+
+//                                 if (refund.status === 'processed') {
+//                                     order.refundInfo.processedAt = new Date();
+//                                     order.status = 'Refunded';
+//                                     syncResult.changes.push('refund_processed');
+//                                 }
+
+//                                 syncResult.updated = true;
+//                                 syncResult.changes.push('refund_status_updated');
+//                             }
+//                         } catch (refundError) {
+//                             console.error('Failed to fetch refund:', refundError.message);
+//                         }
+//                     }
+//                 } else {
+//                     console.log('No payments found for this order');
+//                 }
+//             } catch (paymentError) {
+//                 console.error('Razorpay API Error:', paymentError);
+//                 return res.status(500).json({
+//                     message: "Failed to sync with Razorpay",
+//                     error: paymentError.message,
+//                     details: paymentError.error || {}
+//                 });
+//             }
+//         } else {
+//             console.log('No razorpayOrderId found for this order');
+//         }
+
+//         if (syncResult.updated) {
+//             await order.save();
+//             console.log('Order updated successfully');
+//         }
+
+//         syncResult.currentStatus = {
+//             order: order.status,
+//             payment: order.paymentInfo?.status,
+//             refund: order.refundInfo?.status
+//         };
+
+//         res.status(200).json({
+//             message: syncResult.updated ? "Order synced with Razorpay" : "Order already up to date",
+//             ...syncResult
+//         });
+
+//     } catch (error) {
+//         console.error("ERROR syncing order:", error);
+//         logger.error("Error syncing order:", error);
+//         res.status(500).json({
+//             message: "Sync failed",
+//             error: error.message,
+//             stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+//         });
+//     }
+// });
+
+// // ============================================
+// // DEBUG ROUTE: Check if orders exist
+// // ============================================
+// router.get('/debug/orders', async (req, res) => {
+//     try {
+//         const allOrders = await Order.find().limit(10).lean();
+//         const totalCount = await Order.countDocuments();
+
+//         res.status(200).json({
+//             totalOrders: totalCount,
+//             sampleOrders: allOrders.map(order => ({
+//                 _id: order._id,
+//                 userId: order.userId,
+//                 userIdType: typeof order.userId,
+//                 totalAmount: order.totalAmount,
+//                 status: order.status,
+//                 paymentStatus: order.paymentInfo?.status,
+//                 razorpayOrderId: order.razorpayOrderId,
+//                 createdAt: order.createdAt
+//             }))
+//         });
+//     } catch (error) {
+//         res.status(500).json({ error: error.message });
+//     }
+// });
+
+// // ============================================
+// // 5. BULK SYNC ORDERS (Admin - Use sparingly)
+// // ============================================
+// router.post('/orders/sync-all', async (req, res) => {
+//     const { limit = 10 } = req.body; // Limit to prevent rate limit issues
+
+//     try {
+//         // Get orders that might need syncing
+//         const orders = await Order.find({
+//             $or: [
+//                 { 'paymentInfo.status': { $in: ['created', 'authorized'] } },
+//                 { 'refundInfo.status': 'pending' }
+//             ]
+//         })
+//             .limit(limit)
+//             .sort({ updatedAt: -1 });
+
+//         const syncResults = [];
+
+//         for (const order of orders) {
+//             if (!rateLimiter.canMakeCall()) {
+//                 logger.warn('Rate limit reached during bulk sync');
+//                 break;
+//             }
+
+//             try {
+//                 const payments = await razorpay.orders.fetchPayments(order.razorpayOrderId);
+
+//                 if (payments.items && payments.items.length > 0) {
+//                     const latestPayment = payments.items[0];
+
+//                     if (order.paymentInfo?.status !== latestPayment.status) {
+//                         order.paymentInfo = {
+//                             paymentId: latestPayment.id,
+//                             amount: latestPayment.amount / 100,
+//                             status: latestPayment.status,
+//                             method: latestPayment.method,
+//                             updatedAt: new Date()
+//                         };
+//                         await order.save();
+//                         syncResults.push({ orderId: order._id, updated: true });
+//                     }
+//                 }
+//             } catch (error) {
+//                 logger.error(`Failed to sync order ${order._id}:`, error.message);
+//                 syncResults.push({ orderId: order._id, error: error.message });
+//             }
+//         }
+
+//         res.status(200).json({
+//             message: `Synced ${syncResults.length} orders`,
+//             results: syncResults,
+//             remainingApiCalls: rateLimiter.getRemainingCalls()
+//         });
+
+//     } catch (error) {
+//         logger.error("Bulk sync failed:", error);
+//         res.status(500).json({ message: "Bulk sync failed", error: error.message });
+//     }
+// });
+
+// // ============================================
+// // 6. UPDATE ORDER STATUS (Auto-refund)
+// // ============================================
+// router.put('/orders/:orderId/status', async (req, res) => {
+//     const { orderId } = req.params;
+//     const { status, cancelReason } = req.body;
+
+//     if (!['Pending', 'Delivered', 'Cancelled'].includes(status)) {
+//         return res.status(400).json({ message: "Invalid status" });
+//     }
+
+//     try {
+//         const order = await Order.findById(orderId);
+//         if (!order) {
+//             return res.status(404).json({ message: "Order not found" });
+//         }
+
+//         // If cancelling and payment is captured, process refund
+//         if (status === 'Cancelled' &&
+//             order.status !== 'Cancelled' &&
+//             order.paymentInfo?.status === 'captured' &&
+//             order.paymentInfo?.paymentId) {
+
+//             // Check rate limit before refund
+//             if (!rateLimiter.canMakeCall()) {
+//                 return res.status(429).json({
+//                     message: "Rate limit reached. Please try again later."
+//                 });
+//             }
+
+//             try {
+//                 const refund = await razorpay.payments.refund(
+//                     order.paymentInfo.paymentId,
+//                     {
+//                         amount: order.totalAmount * 100,
+//                         speed: 'optimum',
+//                         notes: {
+//                             reason: cancelReason || 'Cancelled by admin',
+//                             orderId: order._id.toString()
+//                         }
+//                     }
+//                 );
+
+//                 order.refundInfo = {
+//                     refundId: refund.id,
+//                     amount: refund.amount / 100,
+//                     status: refund.status,
+//                     speed: 'optimum',
+//                     reason: cancelReason || 'Cancelled by admin',
+//                     createdAt: new Date(refund.created_at * 1000),
+//                     notes: `Refund initiated. Expected settlement in 5-7 business days.`
+//                 };
+
+//                 logger.info("Refund processed:", { orderId, refundId: refund.id });
+//             } catch (refundError) {
+//                 logger.error("Refund failed:", refundError);
+//                 return res.status(500).json({
+//                     message: "Failed to process refund",
+//                     error: refundError.message
+//                 });
+//             }
+//         }
+
+//         order.status = status;
+//         if (status === 'Cancelled') {
+//             order.cancelReason = cancelReason || 'Cancelled by admin';
+//             order.cancelledBy = 'admin';
+//             order.cancelledAt = new Date();
+//         }
+
+//         await order.save();
+
+//         res.status(200).json({
+//             message: "Order status updated successfully",
+//             order,
+//             remainingApiCalls: rateLimiter.getRemainingCalls()
+//         });
+//     } catch (error) {
+//         logger.error("Error updating order status:", error);
+//         res.status(500).json({ message: "Server error", error: error.message });
+//     }
+// });
+
+// // ============================================
+// // 7. GET API USAGE STATS
+// // ============================================
+// router.get('/api-stats', (req, res) => {
+//     res.status(200).json({
+//         remainingCalls: rateLimiter.getRemainingCalls(),
+//         maxCallsPerHour: rateLimiter.maxCallsPerHour,
+//         currentCalls: rateLimiter.calls.length,
+//         message: 'API calls are limited to stay within free tier'
+//     });
+// });
+
+// module.exports = router;
+
+
+// // 4:
 const express = require('express');
 const router = express.Router();
 const Order = require('../models/order');
@@ -1172,6 +1952,7 @@ const { logger } = require("../utils/logger");
 const Razorpay = require('razorpay');
 const nodemailer = require('nodemailer');
 
+// Initialize Razorpay with auto-capture enabled
 const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID,
     key_secret: process.env.RAZORPAY_KEY_SECRET,
@@ -1185,36 +1966,7 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-// Rate limiting for live API calls (to stay within free limits)
-const rateLimiter = {
-    calls: [],
-    maxCallsPerHour: 1800, // Stay under 2000 limit
-
-    canMakeCall() {
-        const now = Date.now();
-        const oneHourAgo = now - 3600000;
-
-        // Remove calls older than 1 hour
-        this.calls = this.calls.filter(time => time > oneHourAgo);
-
-        if (this.calls.length >= this.maxCallsPerHour) {
-            logger.warn('Rate limit reached for Razorpay API calls');
-            return false;
-        }
-
-        this.calls.push(now);
-        return true;
-    },
-
-    getRemainingCalls() {
-        const now = Date.now();
-        const oneHourAgo = now - 3600000;
-        this.calls = this.calls.filter(time => time > oneHourAgo);
-        return this.maxCallsPerHour - this.calls.length;
-    }
-};
-
-// Email function 
+// Email sending function 
 const sendOrderEmail = async (toEmail, orderData) => {
     const recipients = [toEmail];
 
@@ -1429,23 +2181,26 @@ const sendOrderEmail = async (toEmail, orderData) => {
 };
 
 // ============================================
-// 1. CREATE ORDER
+// 1. CREATE ORDER - Simplified
 // ============================================
 router.post('/createOrder', async (req, res) => {
     const { userId, items, address, phone, totalAmount, email } = req.body;
 
+    // Validation
     if (!userId || !items?.length || !address || !phone || !totalAmount || !email) {
         return res.status(400).json({ message: "Missing required fields" });
     }
 
     try {
+        // Create Razorpay Order with auto-capture
         const razorpayOrder = await razorpay.orders.create({
             amount: totalAmount * 100,
             currency: "INR",
             receipt: `order_${Date.now()}`,
-            payment_capture: 1,
+            payment_capture: 1, // Auto-capture payment
         });
 
+        // Create order in DB
         const newOrder = new Order({
             userId,
             items,
@@ -1460,10 +2215,11 @@ router.post('/createOrder', async (req, res) => {
                 updatedAt: new Date(),
             },
         });
-
+        
         await newOrder.save();
 
-        sendOrderEmail(email, newOrder).catch(err =>
+        // Send confirmation email (non-blocking)
+        sendOrderEmail(email, newOrder).catch(err => 
             logger.error("Email failed:", err.message)
         );
 
@@ -1480,7 +2236,33 @@ router.post('/createOrder', async (req, res) => {
 });
 
 // ============================================
-// 2. GET USER ORDERS (Fast - From Database)
+// 2. GET SINGLE ORDER STATUS - Simplified
+// ============================================
+router.get('/orders/:orderId/status', async (req, res) => {
+    const { orderId } = req.params;
+
+    try {
+        const order = await Order.findById(orderId);
+        if (!order) {
+            return res.status(404).json({ message: "Order not found" });
+        }
+
+        res.status(200).json({
+            orderId: order._id,
+            status: order.status,
+            paymentInfo: order.paymentInfo,
+            refundInfo: order.refundInfo,
+            totalAmount: order.totalAmount,
+            createdAt: order.createdAt,
+        });
+    } catch (error) {
+        logger.error("Error fetching order status:", error);
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+});
+
+// ============================================
+// 3. GET USER ORDERS - Simplified
 // ============================================
 router.get('/orders/user/:userId', async (req, res) => {
     const { userId } = req.params;
@@ -1488,12 +2270,10 @@ router.get('/orders/user/:userId', async (req, res) => {
     try {
         const orders = await Order.find({ userId })
             .sort({ createdAt: -1 })
-            .select('-__v');
+            .select('-__v'); // Exclude version key
 
         res.status(200).json({
             orders,
-            source: 'database',
-            message: 'Data from webhooks. Click refresh for live status.',
             totalCount: orders.length
         });
     } catch (error) {
@@ -1503,7 +2283,7 @@ router.get('/orders/user/:userId', async (req, res) => {
 });
 
 // ============================================
-// 3. GET ALL ORDERS - Admin (Fast - From Database)
+// 4. GET ALL ORDERS (Admin) - Simplified
 // ============================================
 router.get('/orders', async (req, res) => {
     try {
@@ -1511,11 +2291,9 @@ router.get('/orders', async (req, res) => {
             .sort({ createdAt: -1 })
             .select('-__v');
 
-        res.status(200).json({
+        res.status(200).json({ 
             orders,
-            source: 'database',
-            message: 'Data from webhooks. Click refresh for live status.',
-            totalCount: orders.length
+            totalCount: orders.length 
         });
     } catch (error) {
         logger.error("Error fetching all orders:", error);
@@ -1524,178 +2302,13 @@ router.get('/orders', async (req, res) => {
 });
 
 // ============================================
-// 4. SYNC SINGLE ORDER WITH RAZORPAY (On-demand)
-// ============================================
-router.post('/orders/:orderId/sync', async (req, res) => {
-    const { orderId } = req.params;
-
-    // Check rate limit
-    if (!rateLimiter.canMakeCall()) {
-        return res.status(429).json({
-            message: "Rate limit reached. Please try again later.",
-            remainingCalls: rateLimiter.getRemainingCalls()
-        });
-    }
-
-    try {
-        const order = await Order.findById(orderId);
-        if (!order) {
-            return res.status(404).json({ message: "Order not found" });
-        }
-
-        const syncResult = {
-            orderId: order._id,
-            previousStatus: {
-                order: order.status,
-                payment: order.paymentInfo?.status,
-                refund: order.refundInfo?.status
-            },
-            updated: false,
-            changes: []
-        };
-
-        // 1. Sync Payment Status
-        if (order.razorpayOrderId) {
-            try {
-                const payments = await razorpay.orders.fetchPayments(order.razorpayOrderId);
-
-                if (payments.items && payments.items.length > 0) {
-                    const latestPayment = payments.items[0];
-
-                    // Update only if status changed
-                    if (order.paymentInfo?.status !== latestPayment.status) {
-                        order.paymentInfo = {
-                            paymentId: latestPayment.id,
-                            amount: latestPayment.amount / 100,
-                            status: latestPayment.status,
-                            method: latestPayment.method,
-                            updatedAt: new Date()
-                        };
-                        syncResult.updated = true;
-                        syncResult.changes.push('payment_status_updated');
-                    }
-
-                    // 2. Sync Refund Status (if payment is captured)
-                    if (latestPayment.status === 'captured' && order.refundInfo?.refundId) {
-                        try {
-                            const refund = await razorpay.refunds.fetch(order.refundInfo.refundId);
-
-                            if (order.refundInfo.status !== refund.status) {
-                                order.refundInfo.status = refund.status;
-
-                                if (refund.status === 'processed') {
-                                    order.refundInfo.processedAt = new Date();
-                                    order.status = 'Refunded';
-                                    syncResult.changes.push('refund_processed');
-                                }
-
-                                syncResult.updated = true;
-                                syncResult.changes.push('refund_status_updated');
-                            }
-                        } catch (refundError) {
-                            logger.error('Failed to sync refund:', refundError.message);
-                        }
-                    }
-                }
-            } catch (paymentError) {
-                logger.error('Failed to sync payment:', paymentError.message);
-                return res.status(500).json({
-                    message: "Failed to sync with Razorpay",
-                    error: paymentError.message
-                });
-            }
-        }
-
-        if (syncResult.updated) {
-            await order.save();
-        }
-
-        syncResult.currentStatus = {
-            order: order.status,
-            payment: order.paymentInfo?.status,
-            refund: order.refundInfo?.status
-        };
-
-        res.status(200).json({
-            message: syncResult.updated ? "Order synced with Razorpay" : "Order already up to date",
-            ...syncResult,
-            remainingApiCalls: rateLimiter.getRemainingCalls()
-        });
-
-    } catch (error) {
-        logger.error("Error syncing order:", error);
-        res.status(500).json({ message: "Sync failed", error: error.message });
-    }
-});
-
-// ============================================
-// 5. BULK SYNC ORDERS (Admin - Use sparingly)
-// ============================================
-router.post('/orders/sync-all', async (req, res) => {
-    const { limit = 10 } = req.body; // Limit to prevent rate limit issues
-
-    try {
-        // Get orders that might need syncing
-        const orders = await Order.find({
-            $or: [
-                { 'paymentInfo.status': { $in: ['created', 'authorized'] } },
-                { 'refundInfo.status': 'pending' }
-            ]
-        })
-            .limit(limit)
-            .sort({ updatedAt: -1 });
-
-        const syncResults = [];
-
-        for (const order of orders) {
-            if (!rateLimiter.canMakeCall()) {
-                logger.warn('Rate limit reached during bulk sync');
-                break;
-            }
-
-            try {
-                const payments = await razorpay.orders.fetchPayments(order.razorpayOrderId);
-
-                if (payments.items && payments.items.length > 0) {
-                    const latestPayment = payments.items[0];
-
-                    if (order.paymentInfo?.status !== latestPayment.status) {
-                        order.paymentInfo = {
-                            paymentId: latestPayment.id,
-                            amount: latestPayment.amount / 100,
-                            status: latestPayment.status,
-                            method: latestPayment.method,
-                            updatedAt: new Date()
-                        };
-                        await order.save();
-                        syncResults.push({ orderId: order._id, updated: true });
-                    }
-                }
-            } catch (error) {
-                logger.error(`Failed to sync order ${order._id}:`, error.message);
-                syncResults.push({ orderId: order._id, error: error.message });
-            }
-        }
-
-        res.status(200).json({
-            message: `Synced ${syncResults.length} orders`,
-            results: syncResults,
-            remainingApiCalls: rateLimiter.getRemainingCalls()
-        });
-
-    } catch (error) {
-        logger.error("Bulk sync failed:", error);
-        res.status(500).json({ message: "Bulk sync failed", error: error.message });
-    }
-});
-
-// ============================================
-// 6. UPDATE ORDER STATUS (Auto-refund)
+// 5. UPDATE ORDER STATUS (Admin Only) - Simplified
 // ============================================
 router.put('/orders/:orderId/status', async (req, res) => {
     const { orderId } = req.params;
     const { status, cancelReason } = req.body;
 
+    // Validate status
     if (!['Pending', 'Delivered', 'Cancelled'].includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
     }
@@ -1706,20 +2319,14 @@ router.put('/orders/:orderId/status', async (req, res) => {
             return res.status(404).json({ message: "Order not found" });
         }
 
-        // If cancelling and payment is captured, process refund
-        if (status === 'Cancelled' &&
-            order.status !== 'Cancelled' &&
+        // If cancelling and payment was captured, process refund
+        if (status === 'Cancelled' && 
+            order.status !== 'Cancelled' && 
             order.paymentInfo?.status === 'captured' &&
             order.paymentInfo?.paymentId) {
-
-            // Check rate limit before refund
-            if (!rateLimiter.canMakeCall()) {
-                return res.status(429).json({
-                    message: "Rate limit reached. Please try again later."
-                });
-            }
-
+            
             try {
+                // Process refund
                 const refund = await razorpay.payments.refund(
                     order.paymentInfo.paymentId,
                     {
@@ -1732,11 +2339,12 @@ router.put('/orders/:orderId/status', async (req, res) => {
                     }
                 );
 
+                // Update order with refund info
                 order.refundInfo = {
                     refundId: refund.id,
                     amount: refund.amount / 100,
                     status: refund.status,
-                    speed: 'optimum',
+                    speed: refund.speed_processed || 'optimum',
                     reason: cancelReason || 'Cancelled by admin',
                     createdAt: new Date(refund.created_at * 1000),
                     notes: `Refund initiated. Expected settlement in 5-7 business days.`
@@ -1745,13 +2353,11 @@ router.put('/orders/:orderId/status', async (req, res) => {
                 logger.info("Refund processed:", { orderId, refundId: refund.id });
             } catch (refundError) {
                 logger.error("Refund failed:", refundError);
-                return res.status(500).json({
-                    message: "Failed to process refund",
-                    error: refundError.message
-                });
+                // Continue with cancellation even if refund fails
             }
         }
 
+        // Update order status
         order.status = status;
         if (status === 'Cancelled') {
             order.cancelReason = cancelReason || 'Cancelled by admin';
@@ -1763,8 +2369,7 @@ router.put('/orders/:orderId/status', async (req, res) => {
 
         res.status(200).json({
             message: "Order status updated successfully",
-            order,
-            remainingApiCalls: rateLimiter.getRemainingCalls()
+            order
         });
     } catch (error) {
         logger.error("Error updating order status:", error);
@@ -1773,15 +2378,105 @@ router.put('/orders/:orderId/status', async (req, res) => {
 });
 
 // ============================================
-// 7. GET API USAGE STATS
+// 6. MANUAL REFUND (Admin Only) - Keep for edge cases
 // ============================================
-router.get('/api-stats', (req, res) => {
-    res.status(200).json({
-        remainingCalls: rateLimiter.getRemainingCalls(),
-        maxCallsPerHour: rateLimiter.maxCallsPerHour,
-        currentCalls: rateLimiter.calls.length,
-        message: 'API calls are limited to stay within free tier'
-    });
+router.post('/orders/:orderId/refund', async (req, res) => {
+    const { orderId } = req.params;
+    const { amount, reason } = req.body;
+
+    try {
+        const order = await Order.findById(orderId);
+        if (!order) {
+            return res.status(404).json({ message: "Order not found" });
+        }
+
+        if (!order.paymentInfo?.paymentId) {
+            return res.status(400).json({ message: "No payment found" });
+        }
+
+        if (order.refundInfo?.refundId) {
+            return res.status(400).json({ message: "Refund already processed" });
+        }
+
+        const refundAmount = amount || order.totalAmount;
+        const refund = await razorpay.payments.refund(
+            order.paymentInfo.paymentId,
+            {
+                amount: refundAmount * 100,
+                speed: 'optimum',
+                notes: { reason: reason || 'Manual refund by admin' }
+            }
+        );
+
+        order.refundInfo = {
+            refundId: refund.id,
+            amount: refund.amount / 100,
+            status: refund.status,
+            speed: 'optimum',
+            reason: reason || 'Manual refund by admin',
+            createdAt: new Date(refund.created_at * 1000),
+            notes: `Manual refund processed.`
+        };
+        order.status = 'Cancelled';
+        await order.save();
+
+        res.status(200).json({
+            message: "Refund processed successfully",
+            refund: order.refundInfo
+        });
+    } catch (error) {
+        logger.error("Manual refund failed:", error);
+        res.status(500).json({ message: "Refund failed", error: error.message });
+    }
+});
+
+// ============================================
+// 7. GET REFUND STATUS
+// ============================================
+router.get('/orders/:orderId/refund-status', async (req, res) => {
+    const { orderId } = req.params;
+
+    try {
+        const order = await Order.findById(orderId);
+        if (!order) {
+            return res.status(404).json({ message: "Order not found" });
+        }
+
+        if (!order.refundInfo?.refundId) {
+            return res.status(200).json({ 
+                message: "No refund found",
+                refundInfo: null 
+            });
+        }
+
+        // Fetch live refund status from Razorpay
+        try {
+            const refund = await razorpay.refunds.fetch(order.refundInfo.refundId);
+            
+            // Update local refund info
+            order.refundInfo.status = refund.status;
+            if (refund.status === 'processed') {
+                order.refundInfo.processedAt = new Date();
+                order.status = 'Refunded';
+            }
+            await order.save();
+
+            res.status(200).json({
+                refundInfo: order.refundInfo,
+                liveStatus: refund.status
+            });
+        } catch (rzpError) {
+            // Return cached refund info if API fails
+            res.status(200).json({
+                refundInfo: order.refundInfo,
+                liveStatus: order.refundInfo.status,
+                note: "Using cached status"
+            });
+        }
+    } catch (error) {
+        logger.error("Error fetching refund status:", error);
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
 });
 
 module.exports = router;
