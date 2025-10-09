@@ -52,8 +52,8 @@ const allowedOrigins = [
   'https://www.chauhansjewellers.com', // Allow the www subdomain
   'http://localhost:5173',            // Allow local development
   'https://fvvcbrpm-4000.inc1.devtunnels.ms', // Allow dev tunnel if needed
-   'http://31.97.237.55',
-   'http://chauhansonsjewellers.com',
+  'http://31.97.237.55',
+  'http://chauhansonsjewellers.com',
 ];
 
 app.use(cors({
@@ -86,7 +86,9 @@ app.use('/api/review', reviewRoutes);
 // 8) Routes (Routers only; no app.listen in any route file)
 app.use('/admin', adminRoutes);
 app.use('/user', usersRoutes);
-app.use('/api', orderRoutes);
+// app.use('/api', orderRoutes);
+app.use('/api/orders', orderRoutes);
+
 app.use('/videos', videoRoutes);
 app.use('/webhook', razorpayWebhookRouter);
 // app.use('/', support);
