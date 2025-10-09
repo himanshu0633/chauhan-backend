@@ -1270,6 +1270,282 @@
 // module.exports = router;
 
 // // 5:
+// const express = require('express');
+// const router = express.Router();
+// const crypto = require('crypto');
+// const Order = require('../models/order');
+// const { logger } = require('../utils/logger');
+
+// const WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET;
+
+// // ============================================
+// // SINGLE WEBHOOK ENDPOINT - Handles Everything
+// // ============================================
+// router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+//   try {
+//     const signature = req.headers['x-razorpay-signature'];
+
+//     if (!signature) {
+//       logger.error('Missing webhook signature');
+//       return res.status(400).send('Missing signature');
+//     }
+
+//     // Verify signature
+//     const expectedSignature = crypto
+//       .createHmac('sha256', WEBHOOK_SECRET)
+//       .update(req.body)
+//       .digest('hex');
+
+//     if (expectedSignature !== signature) {
+//       logger.error('Invalid webhook signature');
+//       return res.status(400).send('Invalid signature');
+//     }
+
+//     // Parse payload
+//     const payload = JSON.parse(req.body.toString());
+//     const { event, payload: eventData } = payload;
+
+//     logger.info('Webhook received:', { event, timestamp: new Date() });
+
+//     // Handle webhook based on event type
+//     switch (event) {
+//       case 'payment.captured':
+//         await handlePaymentCaptured(eventData);
+//         break;
+
+//       case 'payment.failed':
+//         await handlePaymentFailed(eventData);
+//         break;
+
+//       case 'refund.processed':
+//         await handleRefundProcessed(eventData);
+//         break;
+
+//       case 'refund.failed':
+//         await handleRefundFailed(eventData);
+//         break;
+
+//       case 'payment.authorized':
+//         await handlePaymentAuthorized(eventData);
+//         break;
+
+//       default:
+//         logger.info('Unhandled webhook event:', event);
+//     }
+
+//     res.status(200).json({ success: true, event });
+
+//   } catch (error) {
+//     logger.error('Webhook error:', error);
+//     res.status(500).send('Internal server error');
+//   }
+// });
+
+// // ============================================
+// // WEBHOOK HANDLERS
+// // ============================================
+
+// async function handlePaymentAuthorized(eventData) {
+//   const payment = eventData.payment.entity;
+//   const orderId = payment.order_id;
+
+//   try {
+//     const order = await Order.findOne({ razorpayOrderId: orderId });
+//     if (!order) {
+//       logger.warn('Order not found for payment.authorized:', orderId);
+//       return;
+//     }
+
+//     // Update payment info to authorized
+//     order.paymentInfo = {
+//       paymentId: payment.id,
+//       amount: payment.amount / 100,
+//       status: 'authorized',
+//       method: payment.method,
+//       updatedAt: new Date()
+//     };
+
+//     await order.save();
+//     logger.info('Payment authorized:', { orderId: order._id, paymentId: payment.id });
+//   } catch (error) {
+//     logger.error('Error handling payment.authorized:', error);
+//     throw error;
+//   }
+// }
+
+// async function handlePaymentCaptured(eventData) {
+//   const payment = eventData.payment.entity;
+//   const orderId = payment.order_id;
+
+//   try {
+//     const order = await Order.findOne({ razorpayOrderId: orderId });
+//     if (!order) {
+//       logger.warn('Order not found for payment.captured:', orderId);
+//       return;
+//     }
+
+//     // Update payment info
+//     order.paymentInfo = {
+//       paymentId: payment.id,
+//       amount: payment.amount / 100,
+//       status: 'captured',
+//       method: payment.method,
+//       updatedAt: new Date(),
+//       razorpayCreatedAt: payment.created_at ? new Date(payment.created_at * 1000) : new Date()
+//     };
+
+//     // Mark payment as completed
+//     order.paymentCompleted = true;
+//     order.paymentCompletedAt = new Date();
+
+//     // Keep order as Pending for admin to mark as Delivered
+//     // Do NOT auto-cancel or auto-refund here
+//     if (order.status === 'Cancelled') {
+//       // If order was cancelled before payment, keep it cancelled
+//       logger.warn('Payment captured for already cancelled order:', { orderId: order._id });
+//     } else {
+//       order.status = 'Pending'; // Set to Pending, admin will mark as Delivered
+//     }
+
+//     await order.save();
+//     logger.info('Payment captured successfully:', { 
+//       orderId: order._id, 
+//       paymentId: payment.id,
+//       amount: payment.amount / 100,
+//       status: order.status
+//     });
+//   } catch (error) {
+//     logger.error('Error handling payment.captured:', error);
+//     throw error;
+//   }
+// }
+
+// async function handlePaymentFailed(eventData) {
+//   const payment = eventData.payment.entity;
+//   const orderId = payment.order_id;
+
+//   try {
+//     const order = await Order.findOne({ razorpayOrderId: orderId });
+//     if (!order) {
+//       logger.warn('Order not found for payment.failed:', orderId);
+//       return;
+//     }
+
+//     // Update payment info
+//     order.paymentInfo = {
+//       paymentId: payment.id,
+//       amount: payment.amount / 100,
+//       status: 'failed',
+//       method: payment.method,
+//       updatedAt: new Date()
+//     };
+
+//     // Cancel order due to payment failure ONLY if it's not already cancelled
+//     if (order.status !== 'Cancelled') {
+//       order.status = 'Cancelled';
+//       order.cancelReason = `Payment failed: ${payment.error_description || 'Unknown error'}`;
+//       order.cancelledBy = 'system';
+//       order.cancelledAt = new Date();
+//     }
+
+//     await order.save();
+//     logger.info('Payment failed, order cancelled:', { 
+//       orderId: order._id, 
+//       reason: payment.error_description 
+//     });
+//   } catch (error) {
+//     logger.error('Error handling payment.failed:', error);
+//     throw error;
+//   }
+// }
+
+// async function handleRefundProcessed(eventData) {
+//   const refund = eventData.refund.entity;
+//   const paymentId = refund.payment_id;
+
+//   try {
+//     const order = await Order.findOne({ 'paymentInfo.paymentId': paymentId });
+//     if (!order) {
+//       logger.warn('Order not found for refund.processed:', paymentId);
+//       return;
+//     }
+
+//     // Update refund info ONLY if refund exists and matches
+//     if (order.refundInfo && order.refundInfo.refundId === refund.id) {
+//       order.refundInfo.status = 'processed';
+//       order.refundInfo.processedAt = new Date();
+//       order.status = 'Refunded';
+
+//       await order.save();
+//       logger.info('Refund processed successfully:', { 
+//         orderId: order._id, 
+//         refundId: refund.id,
+//         amount: refund.amount / 100
+//       });
+//     } else {
+//       logger.warn('Refund ID mismatch or no refund info found:', {
+//         orderId: order._id,
+//         webhookRefundId: refund.id,
+//         orderRefundId: order.refundInfo?.refundId
+//       });
+//     }
+//   } catch (error) {
+//     logger.error('Error handling refund.processed:', error);
+//     throw error;
+//   }
+// }
+
+// async function handleRefundFailed(eventData) {
+//   const refund = eventData.refund.entity;
+//   const paymentId = refund.payment_id;
+
+//   try {
+//     const order = await Order.findOne({ 'paymentInfo.paymentId': paymentId });
+//     if (!order) {
+//       logger.warn('Order not found for refund.failed:', paymentId);
+//       return;
+//     }
+
+//     // Update refund info ONLY if refund exists and matches
+//     if (order.refundInfo && order.refundInfo.refundId === refund.id) {
+//       order.refundInfo.status = 'failed';
+//       order.refundInfo.failedAt = new Date();
+//       order.refundInfo.notes = `Refund failed: ${refund.error_description || 'Unknown error'}`;
+//       order.refundInfo.errorCode = refund.error_code;
+//       order.refundInfo.errorDescription = refund.error_description;
+
+//       await order.save();
+//       logger.error('Refund failed:', { 
+//         orderId: order._id, 
+//         refundId: refund.id,
+//         error: refund.error_description
+//       });
+//     } else {
+//       logger.warn('Refund ID mismatch or no refund info found:', {
+//         orderId: order._id,
+//         webhookRefundId: refund.id,
+//         orderRefundId: order.refundInfo?.refundId
+//       });
+//     }
+//   } catch (error) {
+//     logger.error('Error handling refund.failed:', error);
+//     throw error;
+//   }
+// }
+
+// // Health check endpoint
+// router.get('/webhook/health', (req, res) => {
+//   res.status(200).json({
+//     status: 'OK',
+//     webhookSecret: WEBHOOK_SECRET ? 'configured' : 'missing',
+//     timestamp: new Date(),
+//     message: 'Webhook endpoint is ready'
+//   });
+// });
+
+// module.exports = router;
+
+// //5 updated:
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
@@ -1278,16 +1554,21 @@ const { logger } = require('../utils/logger');
 
 const WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET;
 
-// ============================================
-// SINGLE WEBHOOK ENDPOINT - Handles Everything
-// ============================================
+// Webhook endpoint - handles all Razorpay events
 router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   try {
     const signature = req.headers['x-razorpay-signature'];
 
     if (!signature) {
+      console.error('Missing webhook signature');
       logger.error('Missing webhook signature');
       return res.status(400).send('Missing signature');
+    }
+
+    if (!WEBHOOK_SECRET) {
+      console.error('Webhook secret not configured');
+      logger.error('Webhook secret not configured');
+      return res.status(500).send('Webhook secret not configured');
     }
 
     // Verify signature
@@ -1297,6 +1578,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
       .digest('hex');
 
     if (expectedSignature !== signature) {
+      console.error('Invalid webhook signature');
       logger.error('Invalid webhook signature');
       return res.status(400).send('Invalid signature');
     }
@@ -1305,9 +1587,10 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
     const payload = JSON.parse(req.body.toString());
     const { event, payload: eventData } = payload;
 
-    logger.info('Webhook received:', { event, timestamp: new Date() });
+    console.log('✅ Webhook received:', event, new Date().toISOString());
+    logger.info('Webhook received:', { event, timestamp: new Date().toISOString() });
 
-    // Handle webhook based on event type
+    // Handle different webhook events
     switch (event) {
       case 'payment.captured':
         await handlePaymentCaptured(eventData);
@@ -1315,6 +1598,14 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
 
       case 'payment.failed':
         await handlePaymentFailed(eventData);
+        break;
+
+      case 'payment.authorized':
+        await handlePaymentAuthorized(eventData);
+        break;
+
+      case 'refund.created':
+        await handleRefundCreated(eventData);
         break;
 
       case 'refund.processed':
@@ -1325,17 +1616,19 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
         await handleRefundFailed(eventData);
         break;
 
-      case 'payment.authorized':
-        await handlePaymentAuthorized(eventData);
+      case 'order.paid':
+        await handleOrderPaid(eventData);
         break;
 
       default:
+        console.log('Unhandled webhook event:', event);
         logger.info('Unhandled webhook event:', event);
     }
 
     res.status(200).json({ success: true, event });
 
   } catch (error) {
+    console.error('❌ Webhook error:', error);
     logger.error('Webhook error:', error);
     res.status(500).send('Internal server error');
   }
@@ -1347,16 +1640,15 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
 
 async function handlePaymentAuthorized(eventData) {
   const payment = eventData.payment.entity;
-  const orderId = payment.order_id;
+  const razorpayOrderId = payment.order_id;
 
   try {
-    const order = await Order.findOne({ razorpayOrderId: orderId });
+    const order = await Order.findOne({ razorpayOrderId });
     if (!order) {
-      logger.warn('Order not found for payment.authorized:', orderId);
+      console.warn('⚠️ Order not found for payment.authorized:', razorpayOrderId);
       return;
     }
 
-    // Update payment info to authorized
     order.paymentInfo = {
       paymentId: payment.id,
       amount: payment.amount / 100,
@@ -1366,8 +1658,10 @@ async function handlePaymentAuthorized(eventData) {
     };
 
     await order.save();
+    console.log('✅ Payment authorized:', order._id);
     logger.info('Payment authorized:', { orderId: order._id, paymentId: payment.id });
   } catch (error) {
+    console.error('❌ Error in payment.authorized:', error);
     logger.error('Error handling payment.authorized:', error);
     throw error;
   }
@@ -1375,12 +1669,12 @@ async function handlePaymentAuthorized(eventData) {
 
 async function handlePaymentCaptured(eventData) {
   const payment = eventData.payment.entity;
-  const orderId = payment.order_id;
+  const razorpayOrderId = payment.order_id;
 
   try {
-    const order = await Order.findOne({ razorpayOrderId: orderId });
+    const order = await Order.findOne({ razorpayOrderId });
     if (!order) {
-      logger.warn('Order not found for payment.captured:', orderId);
+      console.warn('⚠️ Order not found for payment.captured:', razorpayOrderId);
       return;
     }
 
@@ -1391,30 +1685,36 @@ async function handlePaymentCaptured(eventData) {
       status: 'captured',
       method: payment.method,
       updatedAt: new Date(),
-      razorpayCreatedAt: payment.created_at ? new Date(payment.created_at * 1000) : new Date()
+      razorpayCreatedAt: payment.created_at ? new Date(payment.created_at * 1000) : new Date(),
+      fee: payment.fee ? payment.fee / 100 : 0,
+      tax: payment.tax ? payment.tax / 100 : 0
     };
 
     // Mark payment as completed
     order.paymentCompleted = true;
     order.paymentCompletedAt = new Date();
 
-    // Keep order as Pending for admin to mark as Delivered
-    // Do NOT auto-cancel or auto-refund here
-    if (order.status === 'Cancelled') {
-      // If order was cancelled before payment, keep it cancelled
-      logger.warn('Payment captured for already cancelled order:', { orderId: order._id });
-    } else {
-      order.status = 'Pending'; // Set to Pending, admin will mark as Delivered
+    // Set status to Pending for admin to mark as Delivered
+    if (order.status !== 'Cancelled') {
+      order.status = 'Pending';
     }
 
     await order.save();
-    logger.info('Payment captured successfully:', { 
+    
+    console.log('✅ Payment captured:', { 
       orderId: order._id, 
       paymentId: payment.id,
       amount: payment.amount / 100,
       status: order.status
     });
+    
+    logger.info('Payment captured successfully:', { 
+      orderId: order._id, 
+      paymentId: payment.id,
+      amount: payment.amount / 100
+    });
   } catch (error) {
+    console.error('❌ Error in payment.captured:', error);
     logger.error('Error handling payment.captured:', error);
     throw error;
   }
@@ -1422,16 +1722,15 @@ async function handlePaymentCaptured(eventData) {
 
 async function handlePaymentFailed(eventData) {
   const payment = eventData.payment.entity;
-  const orderId = payment.order_id;
+  const razorpayOrderId = payment.order_id;
 
   try {
-    const order = await Order.findOne({ razorpayOrderId: orderId });
+    const order = await Order.findOne({ razorpayOrderId });
     if (!order) {
-      logger.warn('Order not found for payment.failed:', orderId);
+      console.warn('⚠️ Order not found for payment.failed:', razorpayOrderId);
       return;
     }
 
-    // Update payment info
     order.paymentInfo = {
       paymentId: payment.id,
       amount: payment.amount / 100,
@@ -1440,7 +1739,7 @@ async function handlePaymentFailed(eventData) {
       updatedAt: new Date()
     };
 
-    // Cancel order due to payment failure ONLY if it's not already cancelled
+    // Cancel order only if not already cancelled
     if (order.status !== 'Cancelled') {
       order.status = 'Cancelled';
       order.cancelReason = `Payment failed: ${payment.error_description || 'Unknown error'}`;
@@ -1449,12 +1748,96 @@ async function handlePaymentFailed(eventData) {
     }
 
     await order.save();
+    
+    console.log('✅ Payment failed, order cancelled:', { 
+      orderId: order._id, 
+      reason: payment.error_description 
+    });
+    
     logger.info('Payment failed, order cancelled:', { 
       orderId: order._id, 
       reason: payment.error_description 
     });
   } catch (error) {
+    console.error('❌ Error in payment.failed:', error);
     logger.error('Error handling payment.failed:', error);
+    throw error;
+  }
+}
+
+async function handleOrderPaid(eventData) {
+  const orderEntity = eventData.order.entity;
+  const razorpayOrderId = orderEntity.id;
+
+  try {
+    const order = await Order.findOne({ razorpayOrderId });
+    if (!order) {
+      console.warn('⚠️ Order not found for order.paid:', razorpayOrderId);
+      return;
+    }
+
+    order.paymentCompleted = true;
+    order.paymentCompletedAt = new Date();
+
+    await order.save();
+    
+    console.log('✅ Order paid:', order._id);
+    logger.info('Order paid:', { orderId: order._id });
+  } catch (error) {
+    console.error('❌ Error in order.paid:', error);
+    logger.error('Error handling order.paid:', error);
+    throw error;
+  }
+}
+
+async function handleRefundCreated(eventData) {
+  const refund = eventData.refund.entity;
+  const paymentId = refund.payment_id;
+
+  try {
+    const order = await Order.findOne({ 'paymentInfo.paymentId': paymentId });
+    if (!order) {
+      console.warn('⚠️ Order not found for refund.created:', paymentId);
+      return;
+    }
+
+    const refundSpeed = refund.speed_processed || refund.speed_requested || 'normal';
+    const estimatedDays = refundSpeed === 'optimum' ? 5 : 7;
+    const estimatedSettlement = new Date();
+    estimatedSettlement.setDate(estimatedSettlement.getDate() + estimatedDays);
+
+    order.refundInfo = {
+      refundId: refund.id,
+      amount: refund.amount / 100,
+      status: 'pending',
+      speed: refundSpeed,
+      reason: refund.notes?.reason || order.refundInfo?.reason || 'Refund initiated',
+      createdAt: new Date(refund.created_at * 1000),
+      estimatedSettlement,
+      notes: `Refund initiated. Expected settlement in ${estimatedDays} business days.`
+    };
+
+    if (order.status !== 'Cancelled') {
+      order.status = 'Cancelled';
+      order.cancelReason = order.cancelReason || 'Refund initiated';
+      order.cancelledBy = order.cancelledBy || 'system';
+      order.cancelledAt = order.cancelledAt || new Date();
+    }
+
+    await order.save();
+    
+    console.log('✅ Refund created:', { 
+      orderId: order._id, 
+      refundId: refund.id 
+    });
+    
+    logger.info('Refund created:', { 
+      orderId: order._id, 
+      refundId: refund.id 
+    });
+  } catch (error) {
+    console.error('❌ Error in refund.created:', error);
+    logger.error('Error handling refund.created:', error);
     throw error;
   }
 }
@@ -1466,30 +1849,37 @@ async function handleRefundProcessed(eventData) {
   try {
     const order = await Order.findOne({ 'paymentInfo.paymentId': paymentId });
     if (!order) {
-      logger.warn('Order not found for refund.processed:', paymentId);
+      console.warn('⚠️ Order not found for refund.processed:', paymentId);
       return;
     }
 
-    // Update refund info ONLY if refund exists and matches
+    // Update only if refund IDs match
     if (order.refundInfo && order.refundInfo.refundId === refund.id) {
       order.refundInfo.status = 'processed';
       order.refundInfo.processedAt = new Date();
       order.status = 'Refunded';
 
       await order.save();
-      logger.info('Refund processed successfully:', { 
+      
+      console.log('✅ Refund processed:', { 
         orderId: order._id, 
         refundId: refund.id,
         amount: refund.amount / 100
       });
+      
+      logger.info('Refund processed successfully:', { 
+        orderId: order._id, 
+        refundId: refund.id 
+      });
     } else {
-      logger.warn('Refund ID mismatch or no refund info found:', {
+      console.warn('⚠️ Refund ID mismatch:', {
         orderId: order._id,
         webhookRefundId: refund.id,
         orderRefundId: order.refundInfo?.refundId
       });
     }
   } catch (error) {
+    console.error('❌ Error in refund.processed:', error);
     logger.error('Error handling refund.processed:', error);
     throw error;
   }
@@ -1502,11 +1892,11 @@ async function handleRefundFailed(eventData) {
   try {
     const order = await Order.findOne({ 'paymentInfo.paymentId': paymentId });
     if (!order) {
-      logger.warn('Order not found for refund.failed:', paymentId);
+      console.warn('⚠️ Order not found for refund.failed:', paymentId);
       return;
     }
 
-    // Update refund info ONLY if refund exists and matches
+    // Update only if refund IDs match
     if (order.refundInfo && order.refundInfo.refundId === refund.id) {
       order.refundInfo.status = 'failed';
       order.refundInfo.failedAt = new Date();
@@ -1515,19 +1905,26 @@ async function handleRefundFailed(eventData) {
       order.refundInfo.errorDescription = refund.error_description;
 
       await order.save();
-      logger.error('Refund failed:', { 
+      
+      console.error('❌ Refund failed:', { 
         orderId: order._id, 
         refundId: refund.id,
         error: refund.error_description
       });
+      
+      logger.error('Refund failed:', { 
+        orderId: order._id, 
+        refundId: refund.id 
+      });
     } else {
-      logger.warn('Refund ID mismatch or no refund info found:', {
+      console.warn('⚠️ Refund ID mismatch:', {
         orderId: order._id,
         webhookRefundId: refund.id,
         orderRefundId: order.refundInfo?.refundId
       });
     }
   } catch (error) {
+    console.error('❌ Error in refund.failed:', error);
     logger.error('Error handling refund.failed:', error);
     throw error;
   }
@@ -1538,7 +1935,7 @@ router.get('/webhook/health', (req, res) => {
   res.status(200).json({
     status: 'OK',
     webhookSecret: WEBHOOK_SECRET ? 'configured' : 'missing',
-    timestamp: new Date(),
+    timestamp: new Date().toISOString(),
     message: 'Webhook endpoint is ready'
   });
 });
