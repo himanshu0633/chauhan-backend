@@ -2385,6 +2385,817 @@
 
 
 // // 5:
+// const express = require('express');
+// const router = express.Router();
+// const Order = require('../models/order');
+// const { logger } = require("../utils/logger");
+// const Razorpay = require('razorpay');
+// const nodemailer = require('nodemailer');
+
+// // Initialize Razorpay
+// const razorpay = new Razorpay({
+//     key_id: process.env.RAZORPAY_KEY_ID,
+//     key_secret: process.env.RAZORPAY_KEY_SECRET,
+// });
+
+// const transporter = nodemailer.createTransport({
+//     service: 'gmail',
+//     auth: {
+//         user: process.env.EMAIL_USERNAME,
+//         pass: process.env.EMAIL_PASSWORD,
+//     },
+// });
+
+// const sendOrderEmail = async (toEmail, orderData) => {
+//     const recipients = [toEmail];
+
+//     // Also send to company email if it's different from user email
+//     if (toEmail !== process.env.EMAIL_USERNAME) {
+//         recipients.push(process.env.EMAIL_USERNAME);
+//     }
+
+//     const { items, totalAmount, _id: orderId, address, phone, createdAt } = orderData;
+
+//     // Format date
+//     const orderDate = new Date(createdAt || Date.now()).toLocaleDateString('en-IN', {
+//         weekday: 'long',
+//         year: 'numeric',
+//         month: 'long',
+//         day: 'numeric'
+//     });
+
+//     // Calculate subtotal and format items
+//     const itemsHTML = items.map((item, index) => `
+//         <tr style="border-bottom: 1px solid #eee;">
+//             <td style="padding: 15px 10px; vertical-align: top;">
+//                 <div style="font-weight: 600; color: #333; margin-bottom: 4px;">${item.name}</div>
+//                 <div style="font-size: 13px; color: #666;">Quantity: ${item.quantity}</div>
+//             </td>
+//             <td style="padding: 15px 10px; text-align: right; vertical-align: top; font-weight: 600; color: #333;">
+//                 ₹${item.price.toLocaleString('en-IN')}
+//             </td>
+//         </tr>
+//     `).join('');
+
+//     const mailOptions = {
+//         from: `"Chauhan Sons Jewellers" <${process.env.EMAIL_USERNAME}>`,
+//         to: recipients.join(', '),
+//         subject: `Order Confirmed - #${orderId}`,
+//         html: `
+// <!DOCTYPE html>
+// <html>
+// <head>
+//     <meta charset="UTF-8">
+//     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+//     <title>Order Confirmation</title>
+// </head>
+// <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f5f5;">
+//     <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 20px 0;">
+//         <tr>
+//             <td align="center">
+//                 <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; max-width: 600px; width: 100%;">
+
+//                     <!-- Header -->
+//                     <tr>
+//                         <td style="background: linear-gradient(135deg, #7d2a25 0%, #5a1f1a 100%); padding: 30px; text-align: center;">
+//                             <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;">Chauhan Sons Jewellers</h1>
+//                             <p style="margin: 8px 0 0 0; color: #f0d4b0; font-size: 14px; letter-spacing: 1px;">FINE JEWELRY SINCE 1969</p>
+//                         </td>
+//                     </tr>
+
+//                     <!-- Success Message -->
+//                     <tr>
+//                         <td style="padding: 40px 30px 30px; text-align: center; border-bottom: 3px solid #7d2a25;">
+//                             <div style="display: inline-block; background-color: #e8f5e9; border-radius: 50%; width: 60px; height: 60px; line-height: 60px; margin-bottom: 20px;">
+//                                 <span style="color: #2e7d32; font-size: 32px;">✓</span>
+//                             </div>
+//                             <h2 style="margin: 0 0 10px 0; color: #2e7d32; font-size: 24px; font-weight: 600;">Order Confirmed!</h2>
+//                             <p style="margin: 0; color: #666; font-size: 15px;">Thank you for your purchase. Your order has been received and is being processed.</p>
+//                         </td>
+//                     </tr>
+
+//                     <!-- Order Info -->
+//                     <tr>
+//                         <td style="padding: 30px;">
+//                             <table width="100%" cellpadding="0" cellspacing="0">
+//                                 <tr>
+//                                     <td style="padding-bottom: 20px;">
+//                                         <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9f9f9; border-radius: 8px; padding: 20px;">
+//                                             <tr>
+//                                                 <td style="width: 50%; padding: 10px;">
+//                                                     <div style="font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;">Order Number</div>
+//                                                     <div style="font-size: 16px; color: #333; font-weight: 600;">#${orderId}</div>
+//                                                 </td>
+//                                                 <td style="width: 50%; padding: 10px; text-align: right;">
+//                                                     <div style="font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;">Order Date</div>
+//                                                     <div style="font-size: 16px; color: #333; font-weight: 600;">${orderDate}</div>
+//                                                 </td>
+//                                             </tr>
+//                                         </table>
+//                                     </td>
+//                                 </tr>
+//                             </table>
+
+//                             <!-- Order Items -->
+//                             <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 20px; border: 1px solid #eee; border-radius: 8px; overflow: hidden;">
+//                                 <thead>
+//                                     <tr style="background-color: #f9f9f9;">
+//                                         <th style="padding: 15px 10px; text-align: left; font-size: 13px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Item</th>
+//                                         <th style="padding: 15px 10px; text-align: right; font-size: 13px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Price</th>
+//                                     </tr>
+//                                 </thead>
+//                                 <tbody>
+//                                     ${itemsHTML}
+//                                 </tbody>
+//                             </table>
+
+//                             <!-- Order Summary -->
+//                             <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 20px;">
+//                                 <tr>
+//                                     <td style="padding: 15px 0; border-top: 2px solid #eee;">
+//                                         <table width="100%" cellpadding="0" cellspacing="0">
+//                                             <tr>
+//                                                 <td style="padding: 8px 0; color: #666; font-size: 15px;">Subtotal</td>
+//                                                 <td style="padding: 8px 0; text-align: right; color: #333; font-size: 15px; font-weight: 500;">₹${totalAmount.toLocaleString('en-IN')}</td>
+//                                             </tr>
+//                                             <tr>
+//                                                 <td style="padding: 8px 0; color: #666; font-size: 15px;">Shipping</td>
+//                                                 <td style="padding: 8px 0; text-align: right; color: #2e7d32; font-size: 15px; font-weight: 600;">FREE</td>
+//                                             </tr>
+//                                             <tr>
+//                                                 <td style="padding: 15px 0 0 0; color: #333; font-size: 18px; font-weight: 700; border-top: 2px solid #7d2a25;">Order Total</td>
+//                                                 <td style="padding: 15px 0 0 0; text-align: right; color: #7d2a25; font-size: 20px; font-weight: 700; border-top: 2px solid #7d2a25;">₹${totalAmount.toLocaleString('en-IN')}</td>
+//                                             </tr>
+//                                         </table>
+//                                     </td>
+//                                 </tr>
+//                             </table>
+
+//                             <!-- Delivery Info -->
+//                             <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 30px;">
+//                                 <tr>
+//                                     <td>
+//                                         <div style="background-color: #f9f9f9; border-radius: 8px; padding: 20px; border-left: 4px solid #7d2a25;">
+//                                             <h3 style="margin: 0 0 15px 0; color: #333; font-size: 16px; font-weight: 600;">Delivery Address</h3>
+//                                             <p style="margin: 0 0 8px 0; color: #666; font-size: 14px; line-height: 1.6;">${address}</p>
+//                                             <p style="margin: 0; color: #666; font-size: 14px;">
+//                                                 <strong style="color: #333;">Contact:</strong> ${phone}
+//                                             </p>
+//                                         </div>
+//                                     </td>
+//                                 </tr>
+//                             </table>
+
+//                             <!-- What's Next -->
+//                             <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 30px;">
+//                                 <tr>
+//                                     <td>
+//                                         <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px; font-weight: 600;">What happens next?</h3>
+//                                         <table width="100%" cellpadding="0" cellspacing="0">
+//                                             <tr>
+//                                                 <td style="padding: 12px 0; vertical-align: top; width: 30px;">
+//                                                     <div style="background-color: #7d2a25; color: #fff; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; font-size: 12px; font-weight: 600;">1</div>
+//                                                 </td>
+//                                                 <td style="padding: 12px 0; color: #666; font-size: 14px; line-height: 1.6;">
+//                                                     We'll send you a shipping confirmation email with tracking details
+//                                                 </td>
+//                                             </tr>
+//                                             <tr>
+//                                                 <td style="padding: 12px 0; vertical-align: top;">
+//                                                     <div style="background-color: #7d2a25; color: #fff; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; font-size: 12px; font-weight: 600;">2</div>
+//                                                 </td>
+//                                                 <td style="padding: 12px 0; color: #666; font-size: 14px; line-height: 1.6;">
+//                                                     Your order will be carefully packaged and shipped
+//                                                 </td>
+//                                             </tr>
+//                                             <tr>
+//                                                 <td style="padding: 12px 0; vertical-align: top;">
+//                                                     <div style="background-color: #7d2a25; color: #fff; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; font-size: 12px; font-weight: 600;">3</div>
+//                                                 </td>
+//                                                 <td style="padding: 12px 0; color: #666; font-size: 14px; line-height: 1.6;">
+//                                                     Enjoy your beautiful jewelry from Chauhan Sons!
+//                                                 </td>
+//                                             </tr>
+//                                         </table>
+//                                     </td>
+//                                 </tr>
+//                             </table>
+
+//                             <!-- CTA Button -->
+//                             <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 30px;">
+//                                 <tr>
+//                                     <td align="center">
+//                                         <a href="https://chauhansonsjewellers.com" style="display: inline-block; background: linear-gradient(135deg, #7d2a25 0%, #5a1f1a 100%); color: #ffffff; text-decoration: none; padding: 14px 40px; border-radius: 6px; font-weight: 600; font-size: 15px; letter-spacing: 0.5px;">View Order Status</a>
+//                                     </td>
+//                                 </tr>
+//                             </table>
+
+//                         </td>
+//                     </tr>
+
+//                     <!-- Footer -->
+//                     <tr>
+//                         <td style="background-color: #f9f9f9; padding: 30px; text-align: center; border-top: 1px solid #eee;">
+//                             <p style="margin: 0 0 10px 0; color: #666; font-size: 14px;">Need help with your order?</p>
+//                             <p style="margin: 0 0 15px 0;">
+//                                 <a href="mailto:chauhansons69@yahoo.com" style="color: #7d2a25; text-decoration: none; font-weight: 600;">Contact Customer Support</a>
+//                             </p>
+//                             <div style="margin: 20px 0; padding-top: 20px; border-top: 1px solid #ddd;">
+//                                 <p style="margin: 0 0 8px 0; color: #999; font-size: 12px;">Chauhan Sons Jewellers</p>
+//                                 <p style="margin: 0; color: #999; font-size: 12px;">© ${new Date().getFullYear()} All rights reserved</p>
+//                             </div>
+//                         </td>
+//                     </tr>
+
+//                 </table>
+//             </td>
+//         </tr>
+//     </table>
+// </body>
+// </html>
+//         `,
+//     };
+
+//     return transporter.sendMail(mailOptions);
+// };
+
+// // Fetch live payment status from Razorpay
+// const fetchLivePaymentStatus = async (paymentId) => {
+//     try {
+//         const payment = await razorpay.payments.fetch(paymentId);
+//         return {
+//             status: payment.status,
+//             method: payment.method,
+//             amount: payment.amount / 100,
+//             captured: payment.captured,
+//             updatedAt: new Date(payment.created_at * 1000)
+//         };
+//     } catch (error) {
+//         logger.error('Failed to fetch live payment status:', error);
+//         return null;
+//     }
+// };
+
+// // Fetch live refund status from Razorpay
+// const fetchLiveRefundStatus = async (refundId) => {
+//     try {
+//         const refund = await razorpay.refunds.fetch(refundId);
+//         return {
+//             status: refund.status,
+//             amount: refund.amount / 100,
+//             speedProcessed: refund.speed_processed,
+//             updatedAt: new Date()
+//         };
+//     } catch (error) {
+//         logger.error('Failed to fetch live refund status:', error);
+//         return null;
+//     }
+// };
+
+// // ============================================
+// // ROUTES - ORDERED FROM MOST TO LEAST SPECIFIC
+// // ============================================
+
+// // 0. HEALTH CHECK - Most specific path
+// router.get('/test-payment-route', (req, res) => {
+//     res.json({
+//         message: "Payment route is working",
+//         timestamp: new Date().toISOString(),
+//         razorpayConfigured: !!(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET)
+//     });
+// });
+
+// // 1. CREATE ORDER
+// router.post('/createOrder', async (req, res) => {
+//     const { userId, items, address, phone, totalAmount, email } = req.body;
+
+//     console.log('📦 Creating order for userId:', userId);
+
+//     if (!userId || !items?.length || !address || !phone || !totalAmount || !email) {
+//         return res.status(400).json({ message: "Missing required fields" });
+//     }
+
+//     try {
+//         // Create Razorpay order with AUTOMATIC capture enabled
+//         const razorpayOrder = await razorpay.orders.create({
+//             amount: totalAmount * 100,
+//             currency: "INR",
+//             receipt: `order_${Date.now()}`,
+//             payment_capture: 1, // Auto-capture enabled (1 = automatic, 0 = manual)
+//             notes: {
+//                 userId: userId,
+//                 email: email
+//             }
+//         });
+
+//         const newOrder = new Order({
+//             userId,
+//             items,
+//             address,
+//             phone,
+//             totalAmount,
+//             razorpayOrderId: razorpayOrder.id,
+//             status: 'Pending',
+//             paymentInfo: {
+//                 status: 'created',
+//                 amount: totalAmount,
+//                 updatedAt: new Date(),
+//             },
+//         });
+
+//         await newOrder.save();
+
+//         // Send email asynchronously
+//         sendOrderEmail(email, newOrder).catch(err =>
+//             logger.error("Email failed:", err.message)
+//         );
+
+//         console.log('✅ Order created:', newOrder._id);
+
+//         res.status(201).json({
+//             message: "Order created successfully",
+//             orderId: newOrder._id,
+//             razorpayOrderId: razorpayOrder.id,
+//             razorpayKeyId: process.env.RAZORPAY_KEY_ID,
+//         });
+//     } catch (error) {
+//         logger.error("Order creation failed:", error);
+//         res.status(500).json({ message: "Failed to create order", error: error.message });
+//     }
+// });
+
+// // 2. CAPTURE PAYMENT MANUALLY (if needed for authorized payments)
+// router.post('/capturePayment/:orderId', async (req, res) => {
+//     const { orderId } = req.params;
+
+//     console.log('💳 Manual capture requested for order:', orderId);
+
+//     try {
+//         const order = await Order.findById(orderId);
+
+//         if (!order) {
+//             return res.status(404).json({ message: "Order not found" });
+//         }
+
+//         if (!order.paymentInfo?.paymentId) {
+//             return res.status(400).json({ message: "No payment ID found" });
+//         }
+
+//         if (order.paymentInfo.status !== 'authorized') {
+//             return res.status(400).json({
+//                 message: `Payment cannot be captured. Current status: ${order.paymentInfo.status}`
+//             });
+//         }
+
+//         // Capture the authorized payment
+//         const payment = await razorpay.payments.capture(
+//             order.paymentInfo.paymentId,
+//             order.totalAmount * 100,
+//             "INR"
+//         );
+
+//         // Update order with captured payment info
+//         order.paymentInfo = {
+//             paymentId: payment.id,
+//             amount: payment.amount / 100,
+//             status: 'captured',
+//             method: payment.method,
+//             updatedAt: new Date(),
+//             captured: true
+//         };
+
+//         order.paymentCompleted = true;
+//         order.paymentCompletedAt = new Date();
+
+//         await order.save();
+
+//         console.log('✅ Payment captured successfully:', payment.id);
+
+//         res.status(200).json({
+//             message: "Payment captured successfully",
+//             paymentInfo: order.paymentInfo
+//         });
+
+//     } catch (error) {
+//         console.error('❌ Payment capture failed:', error);
+//         logger.error("Payment capture error:", error);
+//         res.status(500).json({
+//             message: "Failed to capture payment",
+//             error: error.error?.description || error.message
+//         });
+//     }
+// });
+
+// // 3. GET USER ORDERS WITH LIVE STATUS - SPECIFIC before /:orderId
+// router.get('/user/:userId/orders', async (req, res) => {
+//     const { userId } = req.params;
+//     const { includeLiveStatus } = req.query;
+
+//     console.log('📋 Fetching orders for userId:', userId);
+
+//     try {
+//         const orders = await Order.find({ userId })
+//             .sort({ createdAt: -1 })
+//             .lean();
+
+//         // If live status requested, fetch from Razorpay
+//         if (includeLiveStatus === 'true') {
+//             for (let order of orders) {
+//                 // Update payment status if paymentId exists
+//                 if (order.paymentInfo?.paymentId) {
+//                     const livePayment = await fetchLivePaymentStatus(order.paymentInfo.paymentId);
+//                     if (livePayment) {
+//                         order.paymentInfo.liveStatus = livePayment.status;
+//                         order.paymentInfo.captured = livePayment.captured;
+//                     }
+//                 }
+
+//                 // Update refund status if refundId exists
+//                 if (order.refundInfo?.refundId) {
+//                     const liveRefund = await fetchLiveRefundStatus(order.refundInfo.refundId);
+//                     if (liveRefund) {
+//                         order.refundInfo.liveStatus = liveRefund.status;
+//                     }
+//                 }
+//             }
+//         }
+
+//         console.log(`✅ Found ${orders.length} orders for user ${userId}`);
+
+//         res.status(200).json({
+//             orders,
+//             totalCount: orders.length,
+//             source: includeLiveStatus === 'true' ? 'live' : 'database'
+//         });
+//     } catch (error) {
+//         console.error("❌ Error fetching user orders:", error);
+//         logger.error("Error fetching user orders:", error);
+//         res.status(500).json({ message: "Server error", error: error.message });
+//     }
+// });
+
+// // 4. GET ALL ORDERS (Admin) WITH LIVE STATUS - Before /:orderId
+// router.get('/admin/orders', async (req, res) => {
+//     const { includeLiveStatus } = req.query;
+
+//     console.log('👨‍💼 Fetching all orders (admin)');
+
+//     try {
+//         const orders = await Order.find()
+//             .sort({ createdAt: -1 })
+//             .lean();
+
+//         // Optionally fetch live status
+//         if (includeLiveStatus === 'true') {
+//             for (let order of orders) {
+//                 if (order.paymentInfo?.paymentId) {
+//                     const livePayment = await fetchLivePaymentStatus(order.paymentInfo.paymentId);
+//                     if (livePayment) {
+//                         order.paymentInfo.liveStatus = livePayment.status;
+//                     }
+//                 }
+
+//                 if (order.refundInfo?.refundId) {
+//                     const liveRefund = await fetchLiveRefundStatus(order.refundInfo.refundId);
+//                     if (liveRefund) {
+//                         order.refundInfo.liveStatus = liveRefund.status;
+//                     }
+//                 }
+//             }
+//         }
+
+//         console.log(`✅ Found ${orders.length} total orders`);
+
+//         res.status(200).json({
+//             orders,
+//             totalCount: orders.length,
+//             source: includeLiveStatus === 'true' ? 'live' : 'database'
+//         });
+//     } catch (error) {
+//         console.error("❌ Error fetching all orders:", error);
+//         logger.error("Error fetching all orders:", error);
+//         res.status(500).json({ message: "Server error", error: error.message });
+//     }
+// });
+
+// // 5. GET REFUND STATUS WITH LIVE SYNC - SPECIFIC before /:orderId
+// router.get('/:orderId/refund-status', async (req, res) => {
+//     const { orderId } = req.params;
+
+//     console.log('🔄 Fetching refund status for orderId:', orderId);
+
+//     try {
+//         const order = await Order.findById(orderId);
+//         if (!order) {
+//             return res.status(404).json({ message: "Order not found" });
+//         }
+
+//         if (!order.refundInfo?.refundId) {
+//             return res.status(200).json({
+//                 message: "No refund found",
+//                 refundInfo: null
+//             });
+//         }
+
+//         // Fetch live status from Razorpay
+//         try {
+//             const refund = await razorpay.refunds.fetch(order.refundInfo.refundId);
+
+//             // Update if status changed
+//             if (order.refundInfo.status !== refund.status) {
+//                 order.refundInfo.status = refund.status;
+
+//                 if (refund.status === 'processed') {
+//                     order.refundInfo.processedAt = new Date();
+//                     order.status = 'Refunded';
+//                 }
+
+//                 await order.save();
+//                 console.log('✅ Refund status updated:', refund.status);
+//             }
+
+//             res.status(200).json({
+//                 refundInfo: order.refundInfo,
+//                 liveStatus: refund.status,
+//                 source: 'razorpay'
+//             });
+//         } catch (rzpError) {
+//             console.log('⚠️ Could not fetch live refund status:', rzpError.message);
+//             // Return cached status
+//             res.status(200).json({
+//                 refundInfo: order.refundInfo,
+//                 liveStatus: order.refundInfo.status,
+//                 source: 'cache',
+//                 note: "Using cached status - Razorpay API unavailable"
+//             });
+//         }
+//     } catch (error) {
+//         logger.error("Error fetching refund status:", error);
+//         res.status(500).json({ message: "Server error", error: error.message });
+//     }
+// });
+
+// // 6. UPDATE ORDER STATUS WITH AUTO-REFUND - SPECIFIC before /:orderId
+// router.put('/:orderId/status', async (req, res) => {
+//     const { orderId } = req.params;
+//     const { status, cancelReason } = req.body;
+
+//     console.log('📝 Updating order status:', { orderId, status, cancelReason });
+
+//     if (!['Pending', 'Delivered', 'Cancelled'].includes(status)) {
+//         return res.status(400).json({ message: "Invalid status" });
+//     }
+
+//     try {
+//         const order = await Order.findById(orderId);
+//         if (!order) {
+//             return res.status(404).json({ message: "Order not found" });
+//         }
+
+//         let refundProcessed = false;
+
+//         // AUTO-REFUND LOGIC: Process refund ONLY if cancelling a captured payment
+//         if (status === 'Cancelled' &&
+//             order.status !== 'Cancelled' &&
+//             order.paymentInfo?.status === 'captured' &&
+//             order.paymentInfo?.paymentId &&
+//             !order.refundInfo?.refundId) {
+
+//             try {
+//                 console.log('🔄 Processing automatic refund for order:', orderId);
+
+//                 const refund = await razorpay.payments.refund(
+//                     order.paymentInfo.paymentId,
+//                     {
+//                         amount: order.totalAmount * 100,
+//                         speed: 'optimum', // Options: normal, optimum
+//                         notes: {
+//                             reason: cancelReason || 'Cancelled by admin',
+//                             orderId: order._id.toString()
+//                         }
+//                     }
+//                 );
+
+//                 const estimatedDays = 5; // Optimum speed typically 5-7 days
+//                 const estimatedSettlement = new Date();
+//                 estimatedSettlement.setDate(estimatedSettlement.getDate() + estimatedDays);
+
+//                 order.refundInfo = {
+//                     refundId: refund.id,
+//                     amount: refund.amount / 100,
+//                     status: refund.status,
+//                     speed: 'optimum',
+//                     reason: cancelReason || 'Cancelled by admin',
+//                     createdAt: new Date(refund.created_at * 1000),
+//                     estimatedSettlement,
+//                     notes: `Automatic refund initiated. Expected settlement in ${estimatedDays} business days.`
+//                 };
+
+//                 refundProcessed = true;
+//                 console.log('✅ Refund processed successfully:', refund.id);
+//             } catch (refundError) {
+//                 console.error('❌ Refund failed:', refundError);
+//                 logger.error("Refund error:", refundError);
+//                 // Continue with cancellation even if refund fails
+//                 order.refundInfo = {
+//                     status: 'failed',
+//                     reason: cancelReason || 'Cancelled by admin',
+//                     error: refundError.error?.description || refundError.message,
+//                     notes: 'Automatic refund failed - manual intervention required'
+//                 };
+//             }
+//         }
+
+//         // Update order status
+//         order.status = status;
+//         if (status === 'Cancelled') {
+//             order.cancelReason = cancelReason || 'Cancelled by admin';
+//             order.cancelledBy = 'admin';
+//             order.cancelledAt = new Date();
+//         }
+
+//         await order.save();
+
+//         console.log('✅ Order status updated:', { orderId, status, refundProcessed });
+
+//         res.status(200).json({
+//             message: "Order status updated successfully",
+//             order,
+//             refundProcessed,
+//             refundInfo: order.refundInfo || null
+//         });
+//     } catch (error) {
+//         console.error("❌ Error updating order status:", error);
+//         logger.error("Error updating order status:", error);
+//         res.status(500).json({ message: "Server error", error: error.message });
+//     }
+// });
+
+// // 7. MANUAL REFUND ENDPOINT - SPECIFIC before /:orderId
+// router.post('/:orderId/refund', async (req, res) => {
+//     const { orderId } = req.params;
+//     const { amount, reason, speed = 'optimum' } = req.body;
+
+//     console.log('💰 Processing manual refund for order:', orderId);
+
+//     try {
+//         const order = await Order.findById(orderId);
+//         if (!order) {
+//             return res.status(404).json({ message: "Order not found" });
+//         }
+
+//         if (!order.paymentInfo?.paymentId) {
+//             return res.status(400).json({ message: "No payment found to refund" });
+//         }
+
+//         if (order.paymentInfo.status !== 'captured') {
+//             return res.status(400).json({
+//                 message: `Payment not captured. Current status: ${order.paymentInfo.status}`
+//             });
+//         }
+
+//         if (order.refundInfo?.refundId) {
+//             return res.status(400).json({
+//                 message: "Refund already processed",
+//                 existingRefund: order.refundInfo
+//             });
+//         }
+
+//         const refundAmount = amount || order.totalAmount;
+
+//         const refund = await razorpay.payments.refund(
+//             order.paymentInfo.paymentId,
+//             {
+//                 amount: refundAmount * 100,
+//                 speed: speed, // 'normal' or 'optimum'
+//                 notes: {
+//                     reason: reason || 'Manual refund by admin',
+//                     orderId: order._id.toString()
+//                 }
+//             }
+//         );
+
+//         const estimatedDays = speed === 'optimum' ? 5 : 7;
+//         const estimatedSettlement = new Date();
+//         estimatedSettlement.setDate(estimatedSettlement.getDate() + estimatedDays);
+
+//         order.refundInfo = {
+//             refundId: refund.id,
+//             amount: refund.amount / 100,
+//             status: refund.status,
+//             speed: speed,
+//             reason: reason || 'Manual refund by admin',
+//             createdAt: new Date(refund.created_at * 1000),
+//             estimatedSettlement,
+//             notes: `Manual refund processed. Expected settlement in ${estimatedDays} business days.`
+//         };
+
+//         if (order.status !== 'Cancelled') {
+//             order.status = 'Cancelled';
+//             order.cancelReason = reason || 'Manual refund by admin';
+//             order.cancelledBy = 'admin';
+//             order.cancelledAt = new Date();
+//         }
+
+//         await order.save();
+
+//         console.log('✅ Manual refund processed:', refund.id);
+
+//         res.status(200).json({
+//             message: "Refund processed successfully",
+//             refund: order.refundInfo,
+//             order: {
+//                 _id: order._id,
+//                 status: order.status,
+//                 totalAmount: order.totalAmount
+//             }
+//         });
+//     } catch (error) {
+//         console.error("❌ Manual refund failed:", error);
+//         logger.error("Manual refund error:", error);
+//         res.status(500).json({
+//             message: "Refund failed",
+//             error: error.error?.description || error.message
+//         });
+//     }
+// });
+
+// // 8. PAYMENT STATUS (backward compatibility)
+// router.get('/paymentStatus/:orderId', async (req, res) => {
+//     const { orderId } = req.params;
+
+//     console.log('💳 Fetching payment status for order:', orderId);
+
+//     try {
+//         const order = await Order.findById(orderId);
+//         if (!order) {
+//             return res.status(404).json({ message: "Order not found" });
+//         }
+
+//         // Optionally fetch live status
+//         let livePaymentStatus = null;
+//         if (order.paymentInfo?.paymentId) {
+//             livePaymentStatus = await fetchLivePaymentStatus(order.paymentInfo.paymentId);
+//         }
+
+//         res.status(200).json({
+//             paymentInfo: order.paymentInfo || {
+//                 status: 'unknown',
+//                 amount: order.totalAmount
+//             },
+//             livePaymentStatus,
+//             refundInfo: order.refundInfo || null
+//         });
+//     } catch (error) {
+//         console.error("❌ Error fetching payment status:", error);
+//         res.status(500).json({ message: "Server error", error: error.message });
+//     }
+// });
+
+// // 9. GET SINGLE ORDER BY ID - GENERIC (MUST BE LAST)
+// router.get('/:orderId', async (req, res) => {
+//     const { orderId } = req.params;
+
+//     console.log('🔍 Fetching single order:', orderId);
+
+//     try {
+//         const order = await Order.findById(orderId).lean();
+
+//         if (!order) {
+//             return res.status(404).json({ message: "Order not found" });
+//         }
+
+//         // Fetch live statuses
+//         if (order.paymentInfo?.paymentId) {
+//             const livePayment = await fetchLivePaymentStatus(order.paymentInfo.paymentId);
+//             if (livePayment) {
+//                 order.paymentInfo.liveStatus = livePayment.status;
+//             }
+//         }
+
+//         if (order.refundInfo?.refundId) {
+//             const liveRefund = await fetchLiveRefundStatus(order.refundInfo.refundId);
+//             if (liveRefund) {
+//                 order.refundInfo.liveStatus = liveRefund.status;
+//             }
+//         }
+
+//         console.log('✅ Order fetched:', orderId);
+
+//         res.status(200).json({
+//             order,
+//             source: 'database_with_live_sync'
+//         });
+//     } catch (error) {
+//         console.error("❌ Error fetching order:", error);
+//         logger.error("Error fetching order:", error);
+//         res.status(500).json({ message: "Server error", error: error.message });
+//     }
+// });
+
+// module.exports = router;
+
+// // 7:
 const express = require('express');
 const router = express.Router();
 const Order = require('../models/order');
@@ -2398,6 +3209,7 @@ const razorpay = new Razorpay({
     key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
+// Initialize nodemailer
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -2406,17 +3218,14 @@ const transporter = nodemailer.createTransport({
     },
 });
 
+// Email sending function
 const sendOrderEmail = async (toEmail, orderData) => {
     const recipients = [toEmail];
-
-    // Also send to company email if it's different from user email
     if (toEmail !== process.env.EMAIL_USERNAME) {
         recipients.push(process.env.EMAIL_USERNAME);
     }
 
     const { items, totalAmount, _id: orderId, address, phone, createdAt } = orderData;
-
-    // Format date
     const orderDate = new Date(createdAt || Date.now()).toLocaleDateString('en-IN', {
         weekday: 'long',
         year: 'numeric',
@@ -2424,14 +3233,13 @@ const sendOrderEmail = async (toEmail, orderData) => {
         day: 'numeric'
     });
 
-    // Calculate subtotal and format items
-    const itemsHTML = items.map((item, index) => `
+    const itemsHTML = items.map((item) => `
         <tr style="border-bottom: 1px solid #eee;">
-            <td style="padding: 15px 10px; vertical-align: top;">
-                <div style="font-weight: 600; color: #333; margin-bottom: 4px;">${item.name}</div>
-                <div style="font-size: 13px; color: #666;">Quantity: ${item.quantity}</div>
+            <td style="padding: 15px 10px;">
+                <div style="font-weight: 600; color: #333;">${item.name}</div>
+                <div style="font-size: 13px; color: #666;">Qty: ${item.quantity}</div>
             </td>
-            <td style="padding: 15px 10px; text-align: right; vertical-align: top; font-weight: 600; color: #333;">
+            <td style="padding: 15px 10px; text-align: right; font-weight: 600;">
                 ₹${item.price.toLocaleString('en-IN')}
             </td>
         </tr>
@@ -2446,180 +3254,60 @@ const sendOrderEmail = async (toEmail, orderData) => {
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Order Confirmation</title>
 </head>
-<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f5f5;">
-    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 20px 0;">
-        <tr>
-            <td align="center">
-                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; max-width: 600px; width: 100%;">
-
-                    <!-- Header -->
-                    <tr>
-                        <td style="background: linear-gradient(135deg, #7d2a25 0%, #5a1f1a 100%); padding: 30px; text-align: center;">
-                            <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;">Chauhan Sons Jewellers</h1>
-                            <p style="margin: 8px 0 0 0; color: #f0d4b0; font-size: 14px; letter-spacing: 1px;">FINE JEWELRY SINCE 1969</p>
-                        </td>
+<body style="font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5;">
+    <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, #7d2a25 0%, #5a1f1a 100%); padding: 30px; text-align: center;">
+            <h1 style="color: white; margin: 0;">Chauhan Sons Jewellers</h1>
+            <p style="color: #f0d4b0; margin: 10px 0 0;">Order Confirmed ✓</p>
+        </div>
+        
+        <div style="padding: 30px;">
+            <h2 style="color: #2e7d32;">Thank you for your order!</h2>
+            <p style="color: #666;">Order #${orderId}</p>
+            <p style="color: #666;">Date: ${orderDate}</p>
+            
+            <table style="width: 100%; margin: 20px 0; border: 1px solid #eee; border-radius: 8px;">
+                <thead>
+                    <tr style="background: #f9f9f9;">
+                        <th style="padding: 10px; text-align: left;">Item</th>
+                        <th style="padding: 10px; text-align: right;">Price</th>
                     </tr>
-
-                    <!-- Success Message -->
-                    <tr>
-                        <td style="padding: 40px 30px 30px; text-align: center; border-bottom: 3px solid #7d2a25;">
-                            <div style="display: inline-block; background-color: #e8f5e9; border-radius: 50%; width: 60px; height: 60px; line-height: 60px; margin-bottom: 20px;">
-                                <span style="color: #2e7d32; font-size: 32px;">✓</span>
-                            </div>
-                            <h2 style="margin: 0 0 10px 0; color: #2e7d32; font-size: 24px; font-weight: 600;">Order Confirmed!</h2>
-                            <p style="margin: 0; color: #666; font-size: 15px;">Thank you for your purchase. Your order has been received and is being processed.</p>
-                        </td>
-                    </tr>
-
-                    <!-- Order Info -->
-                    <tr>
-                        <td style="padding: 30px;">
-                            <table width="100%" cellpadding="0" cellspacing="0">
-                                <tr>
-                                    <td style="padding-bottom: 20px;">
-                                        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9f9f9; border-radius: 8px; padding: 20px;">
-                                            <tr>
-                                                <td style="width: 50%; padding: 10px;">
-                                                    <div style="font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;">Order Number</div>
-                                                    <div style="font-size: 16px; color: #333; font-weight: 600;">#${orderId}</div>
-                                                </td>
-                                                <td style="width: 50%; padding: 10px; text-align: right;">
-                                                    <div style="font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;">Order Date</div>
-                                                    <div style="font-size: 16px; color: #333; font-weight: 600;">${orderDate}</div>
-                                                </td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <!-- Order Items -->
-                            <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 20px; border: 1px solid #eee; border-radius: 8px; overflow: hidden;">
-                                <thead>
-                                    <tr style="background-color: #f9f9f9;">
-                                        <th style="padding: 15px 10px; text-align: left; font-size: 13px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Item</th>
-                                        <th style="padding: 15px 10px; text-align: right; font-size: 13px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Price</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${itemsHTML}
-                                </tbody>
-                            </table>
-
-                            <!-- Order Summary -->
-                            <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 20px;">
-                                <tr>
-                                    <td style="padding: 15px 0; border-top: 2px solid #eee;">
-                                        <table width="100%" cellpadding="0" cellspacing="0">
-                                            <tr>
-                                                <td style="padding: 8px 0; color: #666; font-size: 15px;">Subtotal</td>
-                                                <td style="padding: 8px 0; text-align: right; color: #333; font-size: 15px; font-weight: 500;">₹${totalAmount.toLocaleString('en-IN')}</td>
-                                            </tr>
-                                            <tr>
-                                                <td style="padding: 8px 0; color: #666; font-size: 15px;">Shipping</td>
-                                                <td style="padding: 8px 0; text-align: right; color: #2e7d32; font-size: 15px; font-weight: 600;">FREE</td>
-                                            </tr>
-                                            <tr>
-                                                <td style="padding: 15px 0 0 0; color: #333; font-size: 18px; font-weight: 700; border-top: 2px solid #7d2a25;">Order Total</td>
-                                                <td style="padding: 15px 0 0 0; text-align: right; color: #7d2a25; font-size: 20px; font-weight: 700; border-top: 2px solid #7d2a25;">₹${totalAmount.toLocaleString('en-IN')}</td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <!-- Delivery Info -->
-                            <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 30px;">
-                                <tr>
-                                    <td>
-                                        <div style="background-color: #f9f9f9; border-radius: 8px; padding: 20px; border-left: 4px solid #7d2a25;">
-                                            <h3 style="margin: 0 0 15px 0; color: #333; font-size: 16px; font-weight: 600;">Delivery Address</h3>
-                                            <p style="margin: 0 0 8px 0; color: #666; font-size: 14px; line-height: 1.6;">${address}</p>
-                                            <p style="margin: 0; color: #666; font-size: 14px;">
-                                                <strong style="color: #333;">Contact:</strong> ${phone}
-                                            </p>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <!-- What's Next -->
-                            <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 30px;">
-                                <tr>
-                                    <td>
-                                        <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px; font-weight: 600;">What happens next?</h3>
-                                        <table width="100%" cellpadding="0" cellspacing="0">
-                                            <tr>
-                                                <td style="padding: 12px 0; vertical-align: top; width: 30px;">
-                                                    <div style="background-color: #7d2a25; color: #fff; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; font-size: 12px; font-weight: 600;">1</div>
-                                                </td>
-                                                <td style="padding: 12px 0; color: #666; font-size: 14px; line-height: 1.6;">
-                                                    We'll send you a shipping confirmation email with tracking details
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td style="padding: 12px 0; vertical-align: top;">
-                                                    <div style="background-color: #7d2a25; color: #fff; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; font-size: 12px; font-weight: 600;">2</div>
-                                                </td>
-                                                <td style="padding: 12px 0; color: #666; font-size: 14px; line-height: 1.6;">
-                                                    Your order will be carefully packaged and shipped
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td style="padding: 12px 0; vertical-align: top;">
-                                                    <div style="background-color: #7d2a25; color: #fff; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; font-size: 12px; font-weight: 600;">3</div>
-                                                </td>
-                                                <td style="padding: 12px 0; color: #666; font-size: 14px; line-height: 1.6;">
-                                                    Enjoy your beautiful jewelry from Chauhan Sons!
-                                                </td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <!-- CTA Button -->
-                            <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 30px;">
-                                <tr>
-                                    <td align="center">
-                                        <a href="https://chauhansonsjewellers.com" style="display: inline-block; background: linear-gradient(135deg, #7d2a25 0%, #5a1f1a 100%); color: #ffffff; text-decoration: none; padding: 14px 40px; border-radius: 6px; font-weight: 600; font-size: 15px; letter-spacing: 0.5px;">View Order Status</a>
-                                    </td>
-                                </tr>
-                            </table>
-
-                        </td>
-                    </tr>
-
-                    <!-- Footer -->
-                    <tr>
-                        <td style="background-color: #f9f9f9; padding: 30px; text-align: center; border-top: 1px solid #eee;">
-                            <p style="margin: 0 0 10px 0; color: #666; font-size: 14px;">Need help with your order?</p>
-                            <p style="margin: 0 0 15px 0;">
-                                <a href="mailto:chauhansons69@yahoo.com" style="color: #7d2a25; text-decoration: none; font-weight: 600;">Contact Customer Support</a>
-                            </p>
-                            <div style="margin: 20px 0; padding-top: 20px; border-top: 1px solid #ddd;">
-                                <p style="margin: 0 0 8px 0; color: #999; font-size: 12px;">Chauhan Sons Jewellers</p>
-                                <p style="margin: 0; color: #999; font-size: 12px;">© ${new Date().getFullYear()} All rights reserved</p>
-                            </div>
-                        </td>
-                    </tr>
-
-                </table>
-            </td>
-        </tr>
-    </table>
+                </thead>
+                <tbody>${itemsHTML}</tbody>
+            </table>
+            
+            <div style="text-align: right; margin-top: 20px; padding-top: 20px; border-top: 2px solid #7d2a25;">
+                <h3 style="color: #7d2a25; margin: 0;">Total: ₹${totalAmount.toLocaleString('en-IN')}</h3>
+            </div>
+            
+            <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-top: 20px;">
+                <p style="margin: 5px 0;"><strong>Delivery Address:</strong></p>
+                <p style="margin: 5px 0; color: #666;">${address}</p>
+                <p style="margin: 5px 0;"><strong>Contact:</strong> ${phone}</p>
+            </div>
+        </div>
+        
+        <div style="background: #f9f9f9; padding: 20px; text-align: center; border-top: 1px solid #eee;">
+            <p style="color: #999; font-size: 12px; margin: 0;">© ${new Date().getFullYear()} Chauhan Sons Jewellers</p>
+        </div>
+    </div>
 </body>
 </html>
-        `,
+        `
     };
 
-    return transporter.sendMail(mailOptions);
+    try {
+        await transporter.sendMail(mailOptions);
+        console.log('✅ Email sent successfully to:', toEmail);
+    } catch (error) {
+        console.error('❌ Email sending failed:', error.message);
+        logger.error('Email error:', error);
+    }
 };
 
-// Fetch live payment status from Razorpay
+// Helper: Fetch live payment status
 const fetchLivePaymentStatus = async (paymentId) => {
     try {
         const payment = await razorpay.payments.fetch(paymentId);
@@ -2631,12 +3319,12 @@ const fetchLivePaymentStatus = async (paymentId) => {
             updatedAt: new Date(payment.created_at * 1000)
         };
     } catch (error) {
-        logger.error('Failed to fetch live payment status:', error);
+        logger.error('Failed to fetch payment status:', error);
         return null;
     }
 };
 
-// Fetch live refund status from Razorpay
+// Helper: Fetch live refund status
 const fetchLiveRefundStatus = async (refundId) => {
     try {
         const refund = await razorpay.refunds.fetch(refundId);
@@ -2647,47 +3335,45 @@ const fetchLiveRefundStatus = async (refundId) => {
             updatedAt: new Date()
         };
     } catch (error) {
-        logger.error('Failed to fetch live refund status:', error);
+        logger.error('Failed to fetch refund status:', error);
         return null;
     }
 };
 
 // ============================================
-// ROUTES - ORDERED FROM MOST TO LEAST SPECIFIC
+// ROUTES (Ordered from most to least specific)
 // ============================================
 
-// 0. HEALTH CHECK - Most specific path
-router.get('/test-payment-route', (req, res) => {
-    res.json({
-        message: "Payment route is working",
-        timestamp: new Date().toISOString(),
-        razorpayConfigured: !!(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET)
-    });
-});
-
-// 1. CREATE ORDER
+// 1. CREATE ORDER (MOST IMPORTANT - FIX THE CALLBACK ERROR)
 router.post('/createOrder', async (req, res) => {
     const { userId, items, address, phone, totalAmount, email } = req.body;
 
     console.log('📦 Creating order for userId:', userId);
 
+    // Validation
     if (!userId || !items?.length || !address || !phone || !totalAmount || !email) {
-        return res.status(400).json({ message: "Missing required fields" });
+        return res.status(400).json({
+            message: "Missing required fields",
+            received: { userId, itemsCount: items?.length, address, phone, totalAmount, email }
+        });
     }
 
     try {
-        // Create Razorpay order with AUTOMATIC capture enabled
+        // Create Razorpay order with auto-capture
         const razorpayOrder = await razorpay.orders.create({
-            amount: totalAmount * 100,
+            amount: Math.round(totalAmount * 100), // Ensure integer
             currency: "INR",
             receipt: `order_${Date.now()}`,
-            payment_capture: 1, // Auto-capture enabled (1 = automatic, 0 = manual)
+            payment_capture: 1, // Auto-capture
             notes: {
                 userId: userId,
                 email: email
             }
         });
 
+        console.log('✅ Razorpay order created:', razorpayOrder.id);
+
+        // Create order in database
         const newOrder = new Order({
             userId,
             items,
@@ -2703,32 +3389,43 @@ router.post('/createOrder', async (req, res) => {
             },
         });
 
+        // Save order (using async/await - NO CALLBACK)
         await newOrder.save();
+        console.log('✅ Order saved to database:', newOrder._id);
 
-        // Send email asynchronously
-        sendOrderEmail(email, newOrder).catch(err =>
-            logger.error("Email failed:", err.message)
-        );
+        // Send email asynchronously (don't wait)
+        sendOrderEmail(email, newOrder).catch(err => {
+            console.error('Email failed but order created:', err.message);
+            logger.error("Email failed:", err);
+        });
 
-        console.log('✅ Order created:', newOrder._id);
-
+        // Return success response
         res.status(201).json({
+            success: true,
             message: "Order created successfully",
             orderId: newOrder._id,
             razorpayOrderId: razorpayOrder.id,
             razorpayKeyId: process.env.RAZORPAY_KEY_ID,
         });
+
     } catch (error) {
-        logger.error("Order creation failed:", error);
-        res.status(500).json({ message: "Failed to create order", error: error.message });
+        console.error('❌ Order creation failed:', error);
+        logger.error("Order creation error:", error);
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to create order",
+            error: error.message,
+            details: error.stack
+        });
     }
 });
 
-// 2. CAPTURE PAYMENT MANUALLY (if needed for authorized payments)
+// 2. CAPTURE PAYMENT (for authorized payments)
 router.post('/capturePayment/:orderId', async (req, res) => {
     const { orderId } = req.params;
 
-    console.log('💳 Manual capture requested for order:', orderId);
+    console.log('💳 Capturing payment for order:', orderId);
 
     try {
         const order = await Order.findById(orderId);
@@ -2743,18 +3440,18 @@ router.post('/capturePayment/:orderId', async (req, res) => {
 
         if (order.paymentInfo.status !== 'authorized') {
             return res.status(400).json({
-                message: `Payment cannot be captured. Current status: ${order.paymentInfo.status}`
+                message: `Cannot capture. Status: ${order.paymentInfo.status}`
             });
         }
 
-        // Capture the authorized payment
+        // Capture payment
         const payment = await razorpay.payments.capture(
             order.paymentInfo.paymentId,
-            order.totalAmount * 100,
+            Math.round(order.totalAmount * 100),
             "INR"
         );
 
-        // Update order with captured payment info
+        // Update order
         order.paymentInfo = {
             paymentId: payment.id,
             amount: payment.amount / 100,
@@ -2763,31 +3460,32 @@ router.post('/capturePayment/:orderId', async (req, res) => {
             updatedAt: new Date(),
             captured: true
         };
-
         order.paymentCompleted = true;
         order.paymentCompletedAt = new Date();
 
         await order.save();
 
-        console.log('✅ Payment captured successfully:', payment.id);
+        console.log('✅ Payment captured:', payment.id);
 
         res.status(200).json({
+            success: true,
             message: "Payment captured successfully",
             paymentInfo: order.paymentInfo
         });
 
     } catch (error) {
-        console.error('❌ Payment capture failed:', error);
-        logger.error("Payment capture error:", error);
+        console.error('❌ Capture failed:', error);
+        logger.error("Capture error:", error);
         res.status(500).json({
+            success: false,
             message: "Failed to capture payment",
             error: error.error?.description || error.message
         });
     }
 });
 
-// 3. GET USER ORDERS WITH LIVE STATUS - SPECIFIC before /:orderId
-router.get('/user/:userId/orders', async (req, res) => {
+// 3. GET USER ORDERS - CORRECTED ROUTE PATH
+router.get('/user/:userId', async (req, res) => {
     const { userId } = req.params;
     const { includeLiveStatus } = req.query;
 
@@ -2798,44 +3496,42 @@ router.get('/user/:userId/orders', async (req, res) => {
             .sort({ createdAt: -1 })
             .lean();
 
-        // If live status requested, fetch from Razorpay
+        // Fetch live status if requested
         if (includeLiveStatus === 'true') {
             for (let order of orders) {
-                // Update payment status if paymentId exists
                 if (order.paymentInfo?.paymentId) {
-                    const livePayment = await fetchLivePaymentStatus(order.paymentInfo.paymentId);
-                    if (livePayment) {
-                        order.paymentInfo.liveStatus = livePayment.status;
-                        order.paymentInfo.captured = livePayment.captured;
-                    }
+                    const live = await fetchLivePaymentStatus(order.paymentInfo.paymentId);
+                    if (live) order.paymentInfo.liveStatus = live.status;
                 }
-
-                // Update refund status if refundId exists
                 if (order.refundInfo?.refundId) {
                     const liveRefund = await fetchLiveRefundStatus(order.refundInfo.refundId);
-                    if (liveRefund) {
-                        order.refundInfo.liveStatus = liveRefund.status;
-                    }
+                    if (liveRefund) order.refundInfo.liveStatus = liveRefund.status;
                 }
             }
         }
 
-        console.log(`✅ Found ${orders.length} orders for user ${userId}`);
+        console.log(`✅ Found ${orders.length} orders`);
 
         res.status(200).json({
+            success: true,
             orders,
             totalCount: orders.length,
             source: includeLiveStatus === 'true' ? 'live' : 'database'
         });
+
     } catch (error) {
-        console.error("❌ Error fetching user orders:", error);
-        logger.error("Error fetching user orders:", error);
-        res.status(500).json({ message: "Server error", error: error.message });
+        console.error("❌ Error fetching orders:", error);
+        logger.error("Fetch orders error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Server error",
+            error: error.message
+        });
     }
 });
 
-// 4. GET ALL ORDERS (Admin) WITH LIVE STATUS - Before /:orderId
-router.get('/admin/orders', async (req, res) => {
+// 4. GET ALL ORDERS (Admin)
+router.get('/', async (req, res) => {
     const { includeLiveStatus } = req.query;
 
     console.log('👨‍💼 Fetching all orders (admin)');
@@ -2845,44 +3541,38 @@ router.get('/admin/orders', async (req, res) => {
             .sort({ createdAt: -1 })
             .lean();
 
-        // Optionally fetch live status
         if (includeLiveStatus === 'true') {
             for (let order of orders) {
                 if (order.paymentInfo?.paymentId) {
-                    const livePayment = await fetchLivePaymentStatus(order.paymentInfo.paymentId);
-                    if (livePayment) {
-                        order.paymentInfo.liveStatus = livePayment.status;
-                    }
+                    const live = await fetchLivePaymentStatus(order.paymentInfo.paymentId);
+                    if (live) order.paymentInfo.liveStatus = live.status;
                 }
-
                 if (order.refundInfo?.refundId) {
                     const liveRefund = await fetchLiveRefundStatus(order.refundInfo.refundId);
-                    if (liveRefund) {
-                        order.refundInfo.liveStatus = liveRefund.status;
-                    }
+                    if (liveRefund) order.refundInfo.liveStatus = liveRefund.status;
                 }
             }
         }
 
-        console.log(`✅ Found ${orders.length} total orders`);
+        console.log(`✅ Found ${orders.length} orders`);
 
         res.status(200).json({
+            success: true,
             orders,
-            totalCount: orders.length,
-            source: includeLiveStatus === 'true' ? 'live' : 'database'
+            totalCount: orders.length
         });
+
     } catch (error) {
-        console.error("❌ Error fetching all orders:", error);
-        logger.error("Error fetching all orders:", error);
-        res.status(500).json({ message: "Server error", error: error.message });
+        console.error("❌ Error fetching orders:", error);
+        res.status(500).json({ success: false, message: "Server error" });
     }
 });
 
-// 5. GET REFUND STATUS WITH LIVE SYNC - SPECIFIC before /:orderId
+// 5. GET REFUND STATUS
 router.get('/:orderId/refund-status', async (req, res) => {
     const { orderId } = req.params;
 
-    console.log('🔄 Fetching refund status for orderId:', orderId);
+    console.log('🔄 Fetching refund status:', orderId);
 
     try {
         const order = await Order.findById(orderId);
@@ -2897,21 +3587,18 @@ router.get('/:orderId/refund-status', async (req, res) => {
             });
         }
 
-        // Fetch live status from Razorpay
+        // Fetch live status
         try {
             const refund = await razorpay.refunds.fetch(order.refundInfo.refundId);
 
-            // Update if status changed
+            // Update if changed
             if (order.refundInfo.status !== refund.status) {
                 order.refundInfo.status = refund.status;
-
                 if (refund.status === 'processed') {
                     order.refundInfo.processedAt = new Date();
                     order.status = 'Refunded';
                 }
-
                 await order.save();
-                console.log('✅ Refund status updated:', refund.status);
             }
 
             res.status(200).json({
@@ -2920,27 +3607,25 @@ router.get('/:orderId/refund-status', async (req, res) => {
                 source: 'razorpay'
             });
         } catch (rzpError) {
-            console.log('⚠️ Could not fetch live refund status:', rzpError.message);
-            // Return cached status
+            console.log('⚠️ Using cached refund status');
             res.status(200).json({
                 refundInfo: order.refundInfo,
                 liveStatus: order.refundInfo.status,
-                source: 'cache',
-                note: "Using cached status - Razorpay API unavailable"
+                source: 'cache'
             });
         }
     } catch (error) {
-        logger.error("Error fetching refund status:", error);
-        res.status(500).json({ message: "Server error", error: error.message });
+        logger.error("Refund status error:", error);
+        res.status(500).json({ message: "Server error" });
     }
 });
 
-// 6. UPDATE ORDER STATUS WITH AUTO-REFUND - SPECIFIC before /:orderId
+// 6. UPDATE ORDER STATUS (with auto-refund)
 router.put('/:orderId/status', async (req, res) => {
     const { orderId } = req.params;
     const { status, cancelReason } = req.body;
 
-    console.log('📝 Updating order status:', { orderId, status, cancelReason });
+    console.log('📝 Updating order:', { orderId, status });
 
     if (!['Pending', 'Delivered', 'Cancelled'].includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
@@ -2954,7 +3639,7 @@ router.put('/:orderId/status', async (req, res) => {
 
         let refundProcessed = false;
 
-        // AUTO-REFUND LOGIC: Process refund ONLY if cancelling a captured payment
+        // AUTO-REFUND on cancellation
         if (status === 'Cancelled' &&
             order.status !== 'Cancelled' &&
             order.paymentInfo?.status === 'captured' &&
@@ -2962,13 +3647,13 @@ router.put('/:orderId/status', async (req, res) => {
             !order.refundInfo?.refundId) {
 
             try {
-                console.log('🔄 Processing automatic refund for order:', orderId);
+                console.log('🔄 Processing auto-refund...');
 
                 const refund = await razorpay.payments.refund(
                     order.paymentInfo.paymentId,
                     {
-                        amount: order.totalAmount * 100,
-                        speed: 'optimum', // Options: normal, optimum
+                        amount: Math.round(order.totalAmount * 100),
+                        speed: 'optimum',
                         notes: {
                             reason: cancelReason || 'Cancelled by admin',
                             orderId: order._id.toString()
@@ -2976,9 +3661,8 @@ router.put('/:orderId/status', async (req, res) => {
                     }
                 );
 
-                const estimatedDays = 5; // Optimum speed typically 5-7 days
                 const estimatedSettlement = new Date();
-                estimatedSettlement.setDate(estimatedSettlement.getDate() + estimatedDays);
+                estimatedSettlement.setDate(estimatedSettlement.getDate() + 5);
 
                 order.refundInfo = {
                     refundId: refund.id,
@@ -2988,20 +3672,20 @@ router.put('/:orderId/status', async (req, res) => {
                     reason: cancelReason || 'Cancelled by admin',
                     createdAt: new Date(refund.created_at * 1000),
                     estimatedSettlement,
-                    notes: `Automatic refund initiated. Expected settlement in ${estimatedDays} business days.`
+                    notes: 'Auto-refund initiated. Settlement in 5-7 days.'
                 };
 
                 refundProcessed = true;
-                console.log('✅ Refund processed successfully:', refund.id);
+                console.log('✅ Refund processed:', refund.id);
+
             } catch (refundError) {
                 console.error('❌ Refund failed:', refundError);
                 logger.error("Refund error:", refundError);
-                // Continue with cancellation even if refund fails
                 order.refundInfo = {
                     status: 'failed',
                     reason: cancelReason || 'Cancelled by admin',
                     error: refundError.error?.description || refundError.message,
-                    notes: 'Automatic refund failed - manual intervention required'
+                    notes: 'Auto-refund failed - manual intervention needed'
                 };
             }
         }
@@ -3016,27 +3700,28 @@ router.put('/:orderId/status', async (req, res) => {
 
         await order.save();
 
-        console.log('✅ Order status updated:', { orderId, status, refundProcessed });
+        console.log('✅ Order updated:', orderId);
 
         res.status(200).json({
-            message: "Order status updated successfully",
+            success: true,
+            message: "Order updated successfully",
             order,
-            refundProcessed,
-            refundInfo: order.refundInfo || null
+            refundProcessed
         });
+
     } catch (error) {
-        console.error("❌ Error updating order status:", error);
-        logger.error("Error updating order status:", error);
-        res.status(500).json({ message: "Server error", error: error.message });
+        console.error("❌ Update failed:", error);
+        logger.error("Update error:", error);
+        res.status(500).json({ success: false, message: "Server error" });
     }
 });
 
-// 7. MANUAL REFUND ENDPOINT - SPECIFIC before /:orderId
+// 7. MANUAL REFUND
 router.post('/:orderId/refund', async (req, res) => {
     const { orderId } = req.params;
     const { amount, reason, speed = 'optimum' } = req.body;
 
-    console.log('💰 Processing manual refund for order:', orderId);
+    console.log('💰 Manual refund:', orderId);
 
     try {
         const order = await Order.findById(orderId);
@@ -3045,20 +3730,17 @@ router.post('/:orderId/refund', async (req, res) => {
         }
 
         if (!order.paymentInfo?.paymentId) {
-            return res.status(400).json({ message: "No payment found to refund" });
+            return res.status(400).json({ message: "No payment to refund" });
         }
 
         if (order.paymentInfo.status !== 'captured') {
             return res.status(400).json({
-                message: `Payment not captured. Current status: ${order.paymentInfo.status}`
+                message: `Cannot refund. Status: ${order.paymentInfo.status}`
             });
         }
 
         if (order.refundInfo?.refundId) {
-            return res.status(400).json({
-                message: "Refund already processed",
-                existingRefund: order.refundInfo
-            });
+            return res.status(400).json({ message: "Already refunded" });
         }
 
         const refundAmount = amount || order.totalAmount;
@@ -3066,10 +3748,10 @@ router.post('/:orderId/refund', async (req, res) => {
         const refund = await razorpay.payments.refund(
             order.paymentInfo.paymentId,
             {
-                amount: refundAmount * 100,
-                speed: speed, // 'normal' or 'optimum'
+                amount: Math.round(refundAmount * 100),
+                speed: speed,
                 notes: {
-                    reason: reason || 'Manual refund by admin',
+                    reason: reason || 'Manual refund',
                     orderId: order._id.toString()
                 }
             }
@@ -3084,47 +3766,43 @@ router.post('/:orderId/refund', async (req, res) => {
             amount: refund.amount / 100,
             status: refund.status,
             speed: speed,
-            reason: reason || 'Manual refund by admin',
+            reason: reason || 'Manual refund',
             createdAt: new Date(refund.created_at * 1000),
             estimatedSettlement,
-            notes: `Manual refund processed. Expected settlement in ${estimatedDays} business days.`
+            notes: `Manual refund. Settlement in ${estimatedDays} days.`
         };
 
         if (order.status !== 'Cancelled') {
             order.status = 'Cancelled';
-            order.cancelReason = reason || 'Manual refund by admin';
+            order.cancelReason = reason || 'Manual refund';
             order.cancelledBy = 'admin';
             order.cancelledAt = new Date();
         }
 
         await order.save();
 
-        console.log('✅ Manual refund processed:', refund.id);
+        console.log('✅ Refund processed:', refund.id);
 
         res.status(200).json({
-            message: "Refund processed successfully",
-            refund: order.refundInfo,
-            order: {
-                _id: order._id,
-                status: order.status,
-                totalAmount: order.totalAmount
-            }
+            success: true,
+            message: "Refund processed",
+            refund: order.refundInfo
         });
+
     } catch (error) {
-        console.error("❌ Manual refund failed:", error);
-        logger.error("Manual refund error:", error);
+        console.error("❌ Refund failed:", error);
+        logger.error("Refund error:", error);
         res.status(500).json({
+            success: false,
             message: "Refund failed",
             error: error.error?.description || error.message
         });
     }
 });
 
-// 8. PAYMENT STATUS (backward compatibility)
+// 8. PAYMENT STATUS (legacy)
 router.get('/paymentStatus/:orderId', async (req, res) => {
     const { orderId } = req.params;
-
-    console.log('💳 Fetching payment status for order:', orderId);
 
     try {
         const order = await Order.findById(orderId);
@@ -3132,31 +3810,27 @@ router.get('/paymentStatus/:orderId', async (req, res) => {
             return res.status(404).json({ message: "Order not found" });
         }
 
-        // Optionally fetch live status
         let livePaymentStatus = null;
         if (order.paymentInfo?.paymentId) {
             livePaymentStatus = await fetchLivePaymentStatus(order.paymentInfo.paymentId);
         }
 
         res.status(200).json({
-            paymentInfo: order.paymentInfo || {
-                status: 'unknown',
-                amount: order.totalAmount
-            },
+            paymentInfo: order.paymentInfo,
             livePaymentStatus,
-            refundInfo: order.refundInfo || null
+            refundInfo: order.refundInfo
         });
+
     } catch (error) {
-        console.error("❌ Error fetching payment status:", error);
-        res.status(500).json({ message: "Server error", error: error.message });
+        res.status(500).json({ message: "Server error" });
     }
 });
 
-// 9. GET SINGLE ORDER BY ID - GENERIC (MUST BE LAST)
+// 9. GET SINGLE ORDER (must be last)
 router.get('/:orderId', async (req, res) => {
     const { orderId } = req.params;
 
-    console.log('🔍 Fetching single order:', orderId);
+    console.log('🔍 Fetching order:', orderId);
 
     try {
         const order = await Order.findById(orderId).lean();
@@ -3167,30 +3841,34 @@ router.get('/:orderId', async (req, res) => {
 
         // Fetch live statuses
         if (order.paymentInfo?.paymentId) {
-            const livePayment = await fetchLivePaymentStatus(order.paymentInfo.paymentId);
-            if (livePayment) {
-                order.paymentInfo.liveStatus = livePayment.status;
-            }
+            const live = await fetchLivePaymentStatus(order.paymentInfo.paymentId);
+            if (live) order.paymentInfo.liveStatus = live.status;
         }
 
         if (order.refundInfo?.refundId) {
             const liveRefund = await fetchLiveRefundStatus(order.refundInfo.refundId);
-            if (liveRefund) {
-                order.refundInfo.liveStatus = liveRefund.status;
-            }
+            if (liveRefund) order.refundInfo.liveStatus = liveRefund.status;
         }
 
-        console.log('✅ Order fetched:', orderId);
-
         res.status(200).json({
-            order,
-            source: 'database_with_live_sync'
+            success: true,
+            order
         });
+
     } catch (error) {
-        console.error("❌ Error fetching order:", error);
-        logger.error("Error fetching order:", error);
-        res.status(500).json({ message: "Server error", error: error.message });
+        console.error("❌ Error:", error);
+        res.status(500).json({ success: false, message: "Server error" });
     }
+});
+
+// Health check
+router.get('/health/check', (req, res) => {
+    res.json({
+        status: 'OK',
+        timestamp: new Date().toISOString(),
+        razorpay: !!(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET),
+        email: !!(process.env.EMAIL_USERNAME && process.env.EMAIL_PASSWORD)
+    });
 });
 
 module.exports = router;
