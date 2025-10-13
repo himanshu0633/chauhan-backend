@@ -1164,2308 +1164,787 @@
 // module.exports = router;
 
 
-// //3:
-// const express = require('express');
-// const router = express.Router();
-// const Order = require('../models/order');
-// const { logger } = require("../utils/logger");
-// const Razorpay = require('razorpay');
-// const nodemailer = require('nodemailer');
 
-// const razorpay = new Razorpay({
-//     key_id: process.env.RAZORPAY_KEY_ID,
-//     key_secret: process.env.RAZORPAY_KEY_SECRET,
-// });
-
-// const transporter = nodemailer.createTransport({
-//     service: 'gmail',
-//     auth: {
-//         user: process.env.EMAIL_USERNAME,
-//         pass: process.env.EMAIL_PASSWORD,
-//     },
-// });
-
-// // Rate limiting for live API calls (to stay within free limits)
-// const rateLimiter = {
-//     calls: [],
-//     maxCallsPerHour: 1800, // Stay under 2000 limit
-
-//     canMakeCall() {
-//         const now = Date.now();
-//         const oneHourAgo = now - 3600000;
-
-//         // Remove calls older than 1 hour
-//         this.calls = this.calls.filter(time => time > oneHourAgo);
-
-//         if (this.calls.length >= this.maxCallsPerHour) {
-//             logger.warn('Rate limit reached for Razorpay API calls');
-//             return false;
-//         }
-
-//         this.calls.push(now);
-//         return true;
-//     },
-
-//     getRemainingCalls() {
-//         const now = Date.now();
-//         const oneHourAgo = now - 3600000;
-//         this.calls = this.calls.filter(time => time > oneHourAgo);
-//         return this.maxCallsPerHour - this.calls.length;
-//     }
-// };
-
-// // Email function 
-// const sendOrderEmail = async (toEmail, orderData) => {
-//     const recipients = [toEmail];
-
-//     // Also send to company email if it's different from user email
-//     if (toEmail !== process.env.EMAIL_USERNAME) {
-//         recipients.push(process.env.EMAIL_USERNAME);
-//     }
-
-//     const { items, totalAmount, _id: orderId, address, phone, createdAt } = orderData;
-
-//     // Format date
-//     const orderDate = new Date(createdAt || Date.now()).toLocaleDateString('en-IN', {
-//         weekday: 'long',
-//         year: 'numeric',
-//         month: 'long',
-//         day: 'numeric'
-//     });
-
-//     // Calculate subtotal and format items
-//     const itemsHTML = items.map((item, index) => `
-//         <tr style="border-bottom: 1px solid #eee;">
-//             <td style="padding: 15px 10px; vertical-align: top;">
-//                 <div style="font-weight: 600; color: #333; margin-bottom: 4px;">${item.name}</div>
-//                 <div style="font-size: 13px; color: #666;">Quantity: ${item.quantity}</div>
-//             </td>
-//             <td style="padding: 15px 10px; text-align: right; vertical-align: top; font-weight: 600; color: #333;">
-//                 ₹${item.price.toLocaleString('en-IN')}
-//             </td>
-//         </tr>
-//     `).join('');
-
-//     const mailOptions = {
-//         from: `"Chauhan Sons Jewellers" <${process.env.EMAIL_USERNAME}>`,
-//         to: recipients.join(', '),
-//         subject: `Order Confirmed - #${orderId}`,
-//         html: `
-// <!DOCTYPE html>
-// <html>
-// <head>
-//     <meta charset="UTF-8">
-//     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-//     <title>Order Confirmation</title>
-// </head>
-// <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f5f5;">
-//     <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 20px 0;">
-//         <tr>
-//             <td align="center">
-//                 <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; max-width: 600px; width: 100%;">
-
-//                     <!-- Header -->
-//                     <tr>
-//                         <td style="background: linear-gradient(135deg, #7d2a25 0%, #5a1f1a 100%); padding: 30px; text-align: center;">
-//                             <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;">Chauhan Sons Jewellers</h1>
-//                             <p style="margin: 8px 0 0 0; color: #f0d4b0; font-size: 14px; letter-spacing: 1px;">FINE JEWELRY SINCE 1969</p>
-//                         </td>
-//                     </tr>
-
-//                     <!-- Success Message -->
-//                     <tr>
-//                         <td style="padding: 40px 30px 30px; text-align: center; border-bottom: 3px solid #7d2a25;">
-//                             <div style="display: inline-block; background-color: #e8f5e9; border-radius: 50%; width: 60px; height: 60px; line-height: 60px; margin-bottom: 20px;">
-//                                 <span style="color: #2e7d32; font-size: 32px;">✓</span>
-//                             </div>
-//                             <h2 style="margin: 0 0 10px 0; color: #2e7d32; font-size: 24px; font-weight: 600;">Order Confirmed!</h2>
-//                             <p style="margin: 0; color: #666; font-size: 15px;">Thank you for your purchase. Your order has been received and is being processed.</p>
-//                         </td>
-//                     </tr>
-
-//                     <!-- Order Info -->
-//                     <tr>
-//                         <td style="padding: 30px;">
-//                             <table width="100%" cellpadding="0" cellspacing="0">
-//                                 <tr>
-//                                     <td style="padding-bottom: 20px;">
-//                                         <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9f9f9; border-radius: 8px; padding: 20px;">
-//                                             <tr>
-//                                                 <td style="width: 50%; padding: 10px;">
-//                                                     <div style="font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;">Order Number</div>
-//                                                     <div style="font-size: 16px; color: #333; font-weight: 600;">#${orderId}</div>
-//                                                 </td>
-//                                                 <td style="width: 50%; padding: 10px; text-align: right;">
-//                                                     <div style="font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;">Order Date</div>
-//                                                     <div style="font-size: 16px; color: #333; font-weight: 600;">${orderDate}</div>
-//                                                 </td>
-//                                             </tr>
-//                                         </table>
-//                                     </td>
-//                                 </tr>
-//                             </table>
-
-//                             <!-- Order Items -->
-//                             <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 20px; border: 1px solid #eee; border-radius: 8px; overflow: hidden;">
-//                                 <thead>
-//                                     <tr style="background-color: #f9f9f9;">
-//                                         <th style="padding: 15px 10px; text-align: left; font-size: 13px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Item</th>
-//                                         <th style="padding: 15px 10px; text-align: right; font-size: 13px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Price</th>
-//                                     </tr>
-//                                 </thead>
-//                                 <tbody>
-//                                     ${itemsHTML}
-//                                 </tbody>
-//                             </table>
-
-//                             <!-- Order Summary -->
-//                             <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 20px;">
-//                                 <tr>
-//                                     <td style="padding: 15px 0; border-top: 2px solid #eee;">
-//                                         <table width="100%" cellpadding="0" cellspacing="0">
-//                                             <tr>
-//                                                 <td style="padding: 8px 0; color: #666; font-size: 15px;">Subtotal</td>
-//                                                 <td style="padding: 8px 0; text-align: right; color: #333; font-size: 15px; font-weight: 500;">₹${totalAmount.toLocaleString('en-IN')}</td>
-//                                             </tr>
-//                                             <tr>
-//                                                 <td style="padding: 8px 0; color: #666; font-size: 15px;">Shipping</td>
-//                                                 <td style="padding: 8px 0; text-align: right; color: #2e7d32; font-size: 15px; font-weight: 600;">FREE</td>
-//                                             </tr>
-//                                             <tr>
-//                                                 <td style="padding: 15px 0 0 0; color: #333; font-size: 18px; font-weight: 700; border-top: 2px solid #7d2a25;">Order Total</td>
-//                                                 <td style="padding: 15px 0 0 0; text-align: right; color: #7d2a25; font-size: 20px; font-weight: 700; border-top: 2px solid #7d2a25;">₹${totalAmount.toLocaleString('en-IN')}</td>
-//                                             </tr>
-//                                         </table>
-//                                     </td>
-//                                 </tr>
-//                             </table>
-
-//                             <!-- Delivery Info -->
-//                             <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 30px;">
-//                                 <tr>
-//                                     <td>
-//                                         <div style="background-color: #f9f9f9; border-radius: 8px; padding: 20px; border-left: 4px solid #7d2a25;">
-//                                             <h3 style="margin: 0 0 15px 0; color: #333; font-size: 16px; font-weight: 600;">Delivery Address</h3>
-//                                             <p style="margin: 0 0 8px 0; color: #666; font-size: 14px; line-height: 1.6;">${address}</p>
-//                                             <p style="margin: 0; color: #666; font-size: 14px;">
-//                                                 <strong style="color: #333;">Contact:</strong> ${phone}
-//                                             </p>
-//                                         </div>
-//                                     </td>
-//                                 </tr>
-//                             </table>
-
-//                             <!-- What's Next -->
-//                             <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 30px;">
-//                                 <tr>
-//                                     <td>
-//                                         <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px; font-weight: 600;">What happens next?</h3>
-//                                         <table width="100%" cellpadding="0" cellspacing="0">
-//                                             <tr>
-//                                                 <td style="padding: 12px 0; vertical-align: top; width: 30px;">
-//                                                     <div style="background-color: #7d2a25; color: #fff; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; font-size: 12px; font-weight: 600;">1</div>
-//                                                 </td>
-//                                                 <td style="padding: 12px 0; color: #666; font-size: 14px; line-height: 1.6;">
-//                                                     We'll send you a shipping confirmation email with tracking details
-//                                                 </td>
-//                                             </tr>
-//                                             <tr>
-//                                                 <td style="padding: 12px 0; vertical-align: top;">
-//                                                     <div style="background-color: #7d2a25; color: #fff; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; font-size: 12px; font-weight: 600;">2</div>
-//                                                 </td>
-//                                                 <td style="padding: 12px 0; color: #666; font-size: 14px; line-height: 1.6;">
-//                                                     Your order will be carefully packaged and shipped
-//                                                 </td>
-//                                             </tr>
-//                                             <tr>
-//                                                 <td style="padding: 12px 0; vertical-align: top;">
-//                                                     <div style="background-color: #7d2a25; color: #fff; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; font-size: 12px; font-weight: 600;">3</div>
-//                                                 </td>
-//                                                 <td style="padding: 12px 0; color: #666; font-size: 14px; line-height: 1.6;">
-//                                                     Enjoy your beautiful jewelry from Chauhan Sons!
-//                                                 </td>
-//                                             </tr>
-//                                         </table>
-//                                     </td>
-//                                 </tr>
-//                             </table>
-
-//                             <!-- CTA Button -->
-//                             <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 30px;">
-//                                 <tr>
-//                                     <td align="center">
-//                                         <a href="https://chauhansonsjewellers.com" style="display: inline-block; background: linear-gradient(135deg, #7d2a25 0%, #5a1f1a 100%); color: #ffffff; text-decoration: none; padding: 14px 40px; border-radius: 6px; font-weight: 600; font-size: 15px; letter-spacing: 0.5px;">View Order Status</a>
-//                                     </td>
-//                                 </tr>
-//                             </table>
-
-//                         </td>
-//                     </tr>
-
-//                     <!-- Footer -->
-//                     <tr>
-//                         <td style="background-color: #f9f9f9; padding: 30px; text-align: center; border-top: 1px solid #eee;">
-//                             <p style="margin: 0 0 10px 0; color: #666; font-size: 14px;">Need help with your order?</p>
-//                             <p style="margin: 0 0 15px 0;">
-//                                 <a href="mailto:chauhansons69@yahoo.com" style="color: #7d2a25; text-decoration: none; font-weight: 600;">Contact Customer Support</a>
-//                             </p>
-//                             <div style="margin: 20px 0; padding-top: 20px; border-top: 1px solid #ddd;">
-//                                 <p style="margin: 0 0 8px 0; color: #999; font-size: 12px;">Chauhan Sons Jewellers</p>
-//                                 <p style="margin: 0; color: #999; font-size: 12px;">© ${new Date().getFullYear()} All rights reserved</p>
-//                             </div>
-//                         </td>
-//                     </tr>
-
-//                 </table>
-//             </td>
-//         </tr>
-//     </table>
-// </body>
-// </html>
-//         `,
-//     };
-
-//     return transporter.sendMail(mailOptions);
-// };
-
-// // ============================================
-// // 1. CREATE ORDER
-// // ============================================
-// router.post('/createOrder', async (req, res) => {
-//     const { userId, items, address, phone, totalAmount, email } = req.body;
-
-//     if (!userId || !items?.length || !address || !phone || !totalAmount || !email) {
-//         return res.status(400).json({ message: "Missing required fields" });
-//     }
-
-//     try {
-//         const razorpayOrder = await razorpay.orders.create({
-//             amount: totalAmount * 100,
-//             currency: "INR",
-//             receipt: `order_${Date.now()}`,
-//             payment_capture: 1,
-//         });
-
-//         const newOrder = new Order({
-//             userId,
-//             items,
-//             address,
-//             phone,
-//             totalAmount,
-//             razorpayOrderId: razorpayOrder.id,
-//             status: 'Pending',
-//             paymentInfo: {
-//                 status: 'created',
-//                 amount: totalAmount,
-//                 updatedAt: new Date(),
-//             },
-//         });
-
-//         await newOrder.save();
-
-//         sendOrderEmail(email, newOrder).catch(err =>
-//             logger.error("Email failed:", err.message)
-//         );
-
-//         res.status(201).json({
-//             message: "Order created successfully",
-//             orderId: newOrder._id,
-//             razorpayOrderId: razorpayOrder.id,
-//             razorpayKeyId: process.env.RAZORPAY_KEY_ID,
-//         });
-//     } catch (error) {
-//         logger.error("Order creation failed:", error);
-//         res.status(500).json({ message: "Failed to create order", error: error.message });
-//     }
-// });
-
-// // ============================================
-// // 2. GET USER ORDERS (Fast - From Database)
-// // ============================================
-// router.get('/orders/user/:userId', async (req, res) => {
-//     const { userId } = req.params;
-
-//     try {
-//         const orders = await Order.find({ userId })
-//             .sort({ createdAt: -1 })
-//             .select('-__v');
-
-//         res.status(200).json({
-//             orders,
-//             source: 'database',
-//             message: 'Data from webhooks. Click refresh for live status.',
-//             totalCount: orders.length
-//         });
-//     } catch (error) {
-//         logger.error("Error fetching user orders:", error);
-//         res.status(500).json({ message: "Server error", error: error.message });
-//     }
-// });
-
-// // ============================================
-// // 3. GET ALL ORDERS - Admin (Fast - From Database)
-// // ============================================
-// router.get('/orders', async (req, res) => {
-//     try {
-//         const orders = await Order.find()
-//             .sort({ createdAt: -1 })
-//             .select('-__v');
-
-//         res.status(200).json({
-//             orders,
-//             source: 'database',
-//             message: 'Data from webhooks. Click refresh for live status.',
-//             totalCount: orders.length
-//         });
-//     } catch (error) {
-//         logger.error("Error fetching all orders:", error);
-//         res.status(500).json({ message: "Server error", error: error.message });
-//     }
-// });
-
-// // ============================================
-// // 4. SYNC SINGLE ORDER WITH RAZORPAY (On-demand)
-// // ============================================
-// // //1:
-// // router.post('/orders/:orderId/sync', async (req, res) => {
-// //     const { orderId } = req.params;
-
-// //     // Check rate limit
-// //     if (!rateLimiter.canMakeCall()) {
-// //         return res.status(429).json({
-// //             message: "Rate limit reached. Please try again later.",
-// //             remainingCalls: rateLimiter.getRemainingCalls()
-// //         });
-// //     }
-
-// //     try {
-// //         const order = await Order.findById(orderId);
-// //         if (!order) {
-// //             return res.status(404).json({ message: "Order not found" });
-// //         }
-
-// //         const syncResult = {
-// //             orderId: order._id,
-// //             previousStatus: {
-// //                 order: order.status,
-// //                 payment: order.paymentInfo?.status,
-// //                 refund: order.refundInfo?.status
-// //             },
-// //             updated: false,
-// //             changes: []
-// //         };
-
-// //         // 1. Sync Payment Status
-// //         if (order.razorpayOrderId) {
-// //             try {
-// //                 const payments = await razorpay.orders.fetchPayments(order.razorpayOrderId);
-
-// //                 if (payments.items && payments.items.length > 0) {
-// //                     const latestPayment = payments.items[0];
-
-// //                     // Update only if status changed
-// //                     if (order.paymentInfo?.status !== latestPayment.status) {
-// //                         order.paymentInfo = {
-// //                             paymentId: latestPayment.id,
-// //                             amount: latestPayment.amount / 100,
-// //                             status: latestPayment.status,
-// //                             method: latestPayment.method,
-// //                             updatedAt: new Date()
-// //                         };
-// //                         syncResult.updated = true;
-// //                         syncResult.changes.push('payment_status_updated');
-// //                     }
-
-// //                     // 2. Sync Refund Status (if payment is captured)
-// //                     if (latestPayment.status === 'captured' && order.refundInfo?.refundId) {
-// //                         try {
-// //                             const refund = await razorpay.refunds.fetch(order.refundInfo.refundId);
-
-// //                             if (order.refundInfo.status !== refund.status) {
-// //                                 order.refundInfo.status = refund.status;
-
-// //                                 if (refund.status === 'processed') {
-// //                                     order.refundInfo.processedAt = new Date();
-// //                                     order.status = 'Refunded';
-// //                                     syncResult.changes.push('refund_processed');
-// //                                 }
-
-// //                                 syncResult.updated = true;
-// //                                 syncResult.changes.push('refund_status_updated');
-// //                             }
-// //                         } catch (refundError) {
-// //                             logger.error('Failed to sync refund:', refundError.message);
-// //                         }
-// //                     }
-// //                 }
-// //             } catch (paymentError) {
-// //                 logger.error('Failed to sync payment:', paymentError.message);
-// //                 return res.status(500).json({
-// //                     message: "Failed to sync with Razorpay",
-// //                     error: paymentError.message
-// //                 });
-// //             }
-// //         }
-
-// //         if (syncResult.updated) {
-// //             await order.save();
-// //         }
-
-// //         syncResult.currentStatus = {
-// //             order: order.status,
-// //             payment: order.paymentInfo?.status,
-// //             refund: order.refundInfo?.status
-// //         };
-
-// //         res.status(200).json({
-// //             message: syncResult.updated ? "Order synced with Razorpay" : "Order already up to date",
-// //             ...syncResult,
-// //             remainingApiCalls: rateLimiter.getRemainingCalls()
-// //         });
-
-// //     } catch (error) {
-// //         logger.error("Error syncing order:", error);
-// //         res.status(500).json({ message: "Sync failed", error: error.message });
-// //     }
-// // });
-
-// // //2:
-// router.post('/orders/:orderId/sync', async (req, res) => {
-//     const { orderId } = req.params;
-
-//     console.log('=== DEBUG: Syncing order:', orderId);
-
-//     try {
-//         const order = await Order.findById(orderId);
-
-//         if (!order) {
-//             console.log('ERROR: Order not found:', orderId);
-//             return res.status(404).json({ message: "Order not found" });
-//         }
-
-//         console.log('Order found:', {
-//             orderId: order._id,
-//             razorpayOrderId: order.razorpayOrderId,
-//             currentPaymentStatus: order.paymentInfo?.status,
-//             currentRefundStatus: order.refundInfo?.status
-//         });
-
-//         const syncResult = {
-//             orderId: order._id,
-//             previousStatus: {
-//                 order: order.status,
-//                 payment: order.paymentInfo?.status,
-//                 refund: order.refundInfo?.status
-//             },
-//             updated: false,
-//             changes: []
-//         };
-
-//         // Sync Payment Status
-//         if (order.razorpayOrderId) {
-//             try {
-//                 console.log('Fetching payments from Razorpay...');
-//                 const payments = await razorpay.orders.fetchPayments(order.razorpayOrderId);
-
-//                 console.log('Razorpay response:', {
-//                     count: payments.items?.length || 0,
-//                     payments: payments.items?.map(p => ({
-//                         id: p.id,
-//                         status: p.status,
-//                         amount: p.amount
-//                     }))
-//                 });
-
-//                 if (payments.items && payments.items.length > 0) {
-//                     const latestPayment = payments.items[0];
-
-//                     // Update only if status changed
-//                     if (order.paymentInfo?.status !== latestPayment.status) {
-//                         order.paymentInfo = {
-//                             paymentId: latestPayment.id,
-//                             amount: latestPayment.amount / 100,
-//                             status: latestPayment.status,
-//                             method: latestPayment.method,
-//                             updatedAt: new Date()
-//                         };
-//                         syncResult.updated = true;
-//                         syncResult.changes.push('payment_status_updated');
-//                         console.log('Payment status updated:', latestPayment.status);
-//                     }
-
-//                     // Sync Refund Status
-//                     if (latestPayment.status === 'captured' && order.refundInfo?.refundId) {
-//                         try {
-//                             console.log('Fetching refund:', order.refundInfo.refundId);
-//                             const refund = await razorpay.refunds.fetch(order.refundInfo.refundId);
-
-//                             console.log('Refund status from Razorpay:', refund.status);
-
-//                             if (order.refundInfo.status !== refund.status) {
-//                                 order.refundInfo.status = refund.status;
-
-//                                 if (refund.status === 'processed') {
-//                                     order.refundInfo.processedAt = new Date();
-//                                     order.status = 'Refunded';
-//                                     syncResult.changes.push('refund_processed');
-//                                 }
-
-//                                 syncResult.updated = true;
-//                                 syncResult.changes.push('refund_status_updated');
-//                             }
-//                         } catch (refundError) {
-//                             console.error('Failed to fetch refund:', refundError.message);
-//                         }
-//                     }
-//                 } else {
-//                     console.log('No payments found for this order');
-//                 }
-//             } catch (paymentError) {
-//                 console.error('Razorpay API Error:', paymentError);
-//                 return res.status(500).json({
-//                     message: "Failed to sync with Razorpay",
-//                     error: paymentError.message,
-//                     details: paymentError.error || {}
-//                 });
-//             }
-//         } else {
-//             console.log('No razorpayOrderId found for this order');
-//         }
-
-//         if (syncResult.updated) {
-//             await order.save();
-//             console.log('Order updated successfully');
-//         }
-
-//         syncResult.currentStatus = {
-//             order: order.status,
-//             payment: order.paymentInfo?.status,
-//             refund: order.refundInfo?.status
-//         };
-
-//         res.status(200).json({
-//             message: syncResult.updated ? "Order synced with Razorpay" : "Order already up to date",
-//             ...syncResult
-//         });
-
-//     } catch (error) {
-//         console.error("ERROR syncing order:", error);
-//         logger.error("Error syncing order:", error);
-//         res.status(500).json({
-//             message: "Sync failed",
-//             error: error.message,
-//             stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-//         });
-//     }
-// });
-
-// // ============================================
-// // DEBUG ROUTE: Check if orders exist
-// // ============================================
-// router.get('/debug/orders', async (req, res) => {
-//     try {
-//         const allOrders = await Order.find().limit(10).lean();
-//         const totalCount = await Order.countDocuments();
-
-//         res.status(200).json({
-//             totalOrders: totalCount,
-//             sampleOrders: allOrders.map(order => ({
-//                 _id: order._id,
-//                 userId: order.userId,
-//                 userIdType: typeof order.userId,
-//                 totalAmount: order.totalAmount,
-//                 status: order.status,
-//                 paymentStatus: order.paymentInfo?.status,
-//                 razorpayOrderId: order.razorpayOrderId,
-//                 createdAt: order.createdAt
-//             }))
-//         });
-//     } catch (error) {
-//         res.status(500).json({ error: error.message });
-//     }
-// });
-
-// // ============================================
-// // 5. BULK SYNC ORDERS (Admin - Use sparingly)
-// // ============================================
-// router.post('/orders/sync-all', async (req, res) => {
-//     const { limit = 10 } = req.body; // Limit to prevent rate limit issues
-
-//     try {
-//         // Get orders that might need syncing
-//         const orders = await Order.find({
-//             $or: [
-//                 { 'paymentInfo.status': { $in: ['created', 'authorized'] } },
-//                 { 'refundInfo.status': 'pending' }
-//             ]
-//         })
-//             .limit(limit)
-//             .sort({ updatedAt: -1 });
-
-//         const syncResults = [];
-
-//         for (const order of orders) {
-//             if (!rateLimiter.canMakeCall()) {
-//                 logger.warn('Rate limit reached during bulk sync');
-//                 break;
-//             }
-
-//             try {
-//                 const payments = await razorpay.orders.fetchPayments(order.razorpayOrderId);
-
-//                 if (payments.items && payments.items.length > 0) {
-//                     const latestPayment = payments.items[0];
-
-//                     if (order.paymentInfo?.status !== latestPayment.status) {
-//                         order.paymentInfo = {
-//                             paymentId: latestPayment.id,
-//                             amount: latestPayment.amount / 100,
-//                             status: latestPayment.status,
-//                             method: latestPayment.method,
-//                             updatedAt: new Date()
-//                         };
-//                         await order.save();
-//                         syncResults.push({ orderId: order._id, updated: true });
-//                     }
-//                 }
-//             } catch (error) {
-//                 logger.error(`Failed to sync order ${order._id}:`, error.message);
-//                 syncResults.push({ orderId: order._id, error: error.message });
-//             }
-//         }
-
-//         res.status(200).json({
-//             message: `Synced ${syncResults.length} orders`,
-//             results: syncResults,
-//             remainingApiCalls: rateLimiter.getRemainingCalls()
-//         });
-
-//     } catch (error) {
-//         logger.error("Bulk sync failed:", error);
-//         res.status(500).json({ message: "Bulk sync failed", error: error.message });
-//     }
-// });
-
-// // ============================================
-// // 6. UPDATE ORDER STATUS (Auto-refund)
-// // ============================================
-// router.put('/orders/:orderId/status', async (req, res) => {
-//     const { orderId } = req.params;
-//     const { status, cancelReason } = req.body;
-
-//     if (!['Pending', 'Delivered', 'Cancelled'].includes(status)) {
-//         return res.status(400).json({ message: "Invalid status" });
-//     }
-
-//     try {
-//         const order = await Order.findById(orderId);
-//         if (!order) {
-//             return res.status(404).json({ message: "Order not found" });
-//         }
-
-//         // If cancelling and payment is captured, process refund
-//         if (status === 'Cancelled' &&
-//             order.status !== 'Cancelled' &&
-//             order.paymentInfo?.status === 'captured' &&
-//             order.paymentInfo?.paymentId) {
-
-//             // Check rate limit before refund
-//             if (!rateLimiter.canMakeCall()) {
-//                 return res.status(429).json({
-//                     message: "Rate limit reached. Please try again later."
-//                 });
-//             }
-
-//             try {
-//                 const refund = await razorpay.payments.refund(
-//                     order.paymentInfo.paymentId,
-//                     {
-//                         amount: order.totalAmount * 100,
-//                         speed: 'optimum',
-//                         notes: {
-//                             reason: cancelReason || 'Cancelled by admin',
-//                             orderId: order._id.toString()
-//                         }
-//                     }
-//                 );
-
-//                 order.refundInfo = {
-//                     refundId: refund.id,
-//                     amount: refund.amount / 100,
-//                     status: refund.status,
-//                     speed: 'optimum',
-//                     reason: cancelReason || 'Cancelled by admin',
-//                     createdAt: new Date(refund.created_at * 1000),
-//                     notes: `Refund initiated. Expected settlement in 5-7 business days.`
-//                 };
-
-//                 logger.info("Refund processed:", { orderId, refundId: refund.id });
-//             } catch (refundError) {
-//                 logger.error("Refund failed:", refundError);
-//                 return res.status(500).json({
-//                     message: "Failed to process refund",
-//                     error: refundError.message
-//                 });
-//             }
-//         }
-
-//         order.status = status;
-//         if (status === 'Cancelled') {
-//             order.cancelReason = cancelReason || 'Cancelled by admin';
-//             order.cancelledBy = 'admin';
-//             order.cancelledAt = new Date();
-//         }
-
-//         await order.save();
-
-//         res.status(200).json({
-//             message: "Order status updated successfully",
-//             order,
-//             remainingApiCalls: rateLimiter.getRemainingCalls()
-//         });
-//     } catch (error) {
-//         logger.error("Error updating order status:", error);
-//         res.status(500).json({ message: "Server error", error: error.message });
-//     }
-// });
-
-// // ============================================
-// // 7. GET API USAGE STATS
-// // ============================================
-// router.get('/api-stats', (req, res) => {
-//     res.status(200).json({
-//         remainingCalls: rateLimiter.getRemainingCalls(),
-//         maxCallsPerHour: rateLimiter.maxCallsPerHour,
-//         currentCalls: rateLimiter.calls.length,
-//         message: 'API calls are limited to stay within free tier'
-//     });
-// });
-
-// module.exports = router;
-
-
-// // 4:
-// const express = require('express');
-// const router = express.Router();
-// const Order = require('../models/order');
-// const { logger } = require("../utils/logger");
-// const Razorpay = require('razorpay');
-// const nodemailer = require('nodemailer');
-
-// // Initialize Razorpay
-// const razorpay = new Razorpay({
-//     key_id: process.env.RAZORPAY_KEY_ID,
-//     key_secret: process.env.RAZORPAY_KEY_SECRET,
-// });
-
-// const transporter = nodemailer.createTransport({
-//     service: 'gmail',
-//     auth: {
-//         user: process.env.EMAIL_USERNAME,
-//         pass: process.env.EMAIL_PASSWORD,
-//     },
-// });
-
-// // Email sending function (keep your existing one)
-// const sendOrderEmail = async (toEmail, orderData) => {
-//     // Your existing email code - keep it as is
-//     const recipients = [toEmail];
-//     if (toEmail !== process.env.EMAIL_USERNAME) {
-//         recipients.push(process.env.EMAIL_USERNAME);
-//     }
-
-//     const { items, totalAmount, _id: orderId, address, phone, createdAt } = orderData;
-//     const orderDate = new Date(createdAt || Date.now()).toLocaleDateString('en-IN', {
-//         weekday: 'long',
-//         year: 'numeric',
-//         month: 'long',
-//         day: 'numeric'
-//     });
-
-//     const itemsHTML = items.map((item) => `
-//         <tr style="border-bottom: 1px solid #eee;">
-//             <td style="padding: 15px 10px; vertical-align: top;">
-//                 <div style="font-weight: 600; color: #333; margin-bottom: 4px;">${item.name}</div>
-//                 <div style="font-size: 13px; color: #666;">Quantity: ${item.quantity}</div>
-//             </td>
-//             <td style="padding: 15px 10px; text-align: right; vertical-align: top; font-weight: 600; color: #333;">
-//                 ₹${item.price.toLocaleString('en-IN')}
-//             </td>
-//         </tr>
-//     `).join('');
-
-//     const mailOptions = {
-//         from: `"Chauhan Sons Jewellers" <${process.env.EMAIL_USERNAME}>`,
-//         to: recipients.join(', '),
-//         subject: `Order Confirmed - #${orderId}`,
-//         html: `<!-- Your existing email HTML -->
-//         <!DOCTYPE html>
-//         <html>
-//         <body>
-//             <h1>Order Confirmed</h1>
-//             <p>Order #${orderId}</p>
-//             <p>Date: ${orderDate}</p>
-//             ${itemsHTML}
-//             <p>Total: ₹${totalAmount}</p>
-//         </body>
-//         </html>
-//         `
-//     };
-
-//     return transporter.sendMail(mailOptions);
-// };
-
-// // ============================================
-// // CRITICAL: SPECIFIC ROUTES FIRST!
-// // Routes are matched in ORDER - most specific MUST come first
-// // ============================================
-
-// // 1. CREATE ORDER
-// router.post('/createOrder', async (req, res) => {
-//     const { userId, items, address, phone, totalAmount, email } = req.body;
-
-//     console.log('Creating order for userId:', userId);
-
-//     if (!userId || !items?.length || !address || !phone || !totalAmount || !email) {
-//         return res.status(400).json({ message: "Missing required fields" });
-//     }
-
-//     try {
-//         const razorpayOrder = await razorpay.orders.create({
-//             amount: totalAmount * 100,
-//             currency: "INR",
-//             receipt: `order_${Date.now()}`,
-//             payment_capture: 1,
-//         });
-
-//         const newOrder = new Order({
-//             userId,
-//             items,
-//             address,
-//             phone,
-//             totalAmount,
-//             razorpayOrderId: razorpayOrder.id,
-//             status: 'Pending',
-//             paymentInfo: {
-//                 status: 'created',
-//                 amount: totalAmount,
-//                 updatedAt: new Date(),
-//             },
-//         });
-
-//         await newOrder.save();
-
-//         sendOrderEmail(email, newOrder).catch(err =>
-//             logger.error("Email failed:", err.message)
-//         );
-
-//         res.status(201).json({
-//             message: "Order created successfully",
-//             orderId: newOrder._id,
-//             razorpayOrderId: razorpayOrder.id,
-//             razorpayKeyId: process.env.RAZORPAY_KEY_ID,
-//         });
-//     } catch (error) {
-//         logger.error("Order creation failed:", error);
-//         res.status(500).json({ message: "Failed to create order", error: error.message });
-//     }
-// });
-
-// // 2. GET USER ORDERS - SPECIFIC ROUTE (MUST BE BEFORE /:orderId)
-// router.get('/orders/user/:userId', async (req, res) => {
-//     const { userId } = req.params;
-
-//     console.log('Fetching orders for userId:', userId);
-
-//     try {
-//         const orders = await Order.find({ userId })
-//             .sort({ createdAt: -1 })
-//             .lean();
-
-//         console.log(`Found ${orders.length} orders for user ${userId}`);
-
-//         res.status(200).json({
-//             orders,
-//             totalCount: orders.length,
-//             source: 'database'
-//         });
-//     } catch (error) {
-//         console.error("Error fetching user orders:", error);
-//         logger.error("Error fetching user orders:", error);
-//         res.status(500).json({ message: "Server error", error: error.message });
-//     }
-// });
-
-// // 3. GET REFUND STATUS - SPECIFIC ROUTE (MUST BE BEFORE /:orderId)
-// router.get('/orders/:orderId/refund-status', async (req, res) => {
-//     const { orderId } = req.params;
-
-//     console.log('Fetching refund status for orderId:', orderId);
-
-//     try {
-//         const order = await Order.findById(orderId);
-//         if (!order) {
-//             return res.status(404).json({ message: "Order not found" });
-//         }
-
-//         if (!order.refundInfo?.refundId) {
-//             return res.status(200).json({
-//                 message: "No refund found",
-//                 refundInfo: null
-//             });
-//         }
-
-//         // Try to fetch live refund status from Razorpay
-//         try {
-//             const refund = await razorpay.refunds.fetch(order.refundInfo.refundId);
-
-//             // Update if status changed
-//             if (order.refundInfo.status !== refund.status) {
-//                 order.refundInfo.status = refund.status;
-
-//                 if (refund.status === 'processed') {
-//                     order.refundInfo.processedAt = new Date();
-//                     order.status = 'Refunded';
-//                 }
-
-//                 await order.save();
-//             }
-
-//             res.status(200).json({
-//                 refundInfo: order.refundInfo,
-//                 liveStatus: refund.status
-//             });
-//         } catch (rzpError) {
-//             console.log('Could not fetch live refund status:', rzpError.message);
-//             // Return cached status
-//             res.status(200).json({
-//                 refundInfo: order.refundInfo,
-//                 liveStatus: order.refundInfo.status,
-//                 note: "Using cached status"
-//             });
-//         }
-//     } catch (error) {
-//         logger.error("Error fetching refund status:", error);
-//         res.status(500).json({ message: "Server error", error: error.message });
-//     }
-// });
-
-// // 4. UPDATE ORDER STATUS - SPECIFIC ROUTE (MUST BE BEFORE /:orderId)
-// router.put('/orders/:orderId/status', async (req, res) => {
-//     const { orderId } = req.params;
-//     const { status, cancelReason } = req.body;
-
-//     console.log('Updating order status:', { orderId, status, cancelReason });
-
-//     if (!['Pending', 'Delivered', 'Cancelled'].includes(status)) {
-//         return res.status(400).json({ message: "Invalid status" });
-//     }
-
-//     try {
-//         const order = await Order.findById(orderId);
-//         if (!order) {
-//             return res.status(404).json({ message: "Order not found" });
-//         }
-
-//         // Process refund ONLY if:
-//         // 1. Cancelling order
-//         // 2. Order not already cancelled
-//         // 3. Payment was captured
-//         // 4. No refund already initiated
-//         if (status === 'Cancelled' &&
-//             order.status !== 'Cancelled' &&
-//             order.paymentInfo?.status === 'captured' &&
-//             order.paymentInfo?.paymentId &&
-//             !order.refundInfo?.refundId) {
-
-//             try {
-//                 console.log('Processing refund for order:', orderId);
-
-//                 const refund = await razorpay.payments.refund(
-//                     order.paymentInfo.paymentId,
-//                     {
-//                         amount: order.totalAmount * 100,
-//                         speed: 'optimum',
-//                         notes: {
-//                             reason: cancelReason || 'Cancelled by admin',
-//                             orderId: order._id.toString()
-//                         }
-//                     }
-//                 );
-
-//                 const estimatedSettlement = new Date();
-//                 estimatedSettlement.setDate(estimatedSettlement.getDate() + 7);
-
-//                 order.refundInfo = {
-//                     refundId: refund.id,
-//                     amount: refund.amount / 100,
-//                     status: refund.status,
-//                     speed: 'optimum',
-//                     reason: cancelReason || 'Cancelled by admin',
-//                     createdAt: new Date(refund.created_at * 1000),
-//                     estimatedSettlement,
-//                     notes: `Refund initiated. Expected settlement in 5-7 business days.`
-//                 };
-
-//                 console.log('Refund processed successfully:', refund.id);
-//             } catch (refundError) {
-//                 console.error('Refund failed:', refundError);
-//                 logger.error("Refund error:", refundError);
-//                 // Continue with cancellation even if refund fails
-//             }
-//         }
-
-//         // Update order status
-//         order.status = status;
-//         if (status === 'Cancelled') {
-//             order.cancelReason = cancelReason || 'Cancelled by admin';
-//             order.cancelledBy = 'admin';
-//             order.cancelledAt = new Date();
-//         }
-
-//         await order.save();
-
-//         res.status(200).json({
-//             message: "Order status updated successfully",
-//             order,
-//             refundProcessed: order.refundInfo?.refundId ? true : false
-//         });
-//     } catch (error) {
-//         console.error("Error updating order status:", error);
-//         logger.error("Error updating order status:", error);
-//         res.status(500).json({ message: "Server error", error: error.message });
-//     }
-// });
-
-// // 5. MANUAL REFUND - SPECIFIC ROUTE (MUST BE BEFORE /:orderId)
-// router.post('/orders/:orderId/refund', async (req, res) => {
-//     const { orderId } = req.params;
-//     const { amount, reason } = req.body;
-
-//     console.log('Processing manual refund for order:', orderId);
-
-//     try {
-//         const order = await Order.findById(orderId);
-//         if (!order) {
-//             return res.status(404).json({ message: "Order not found" });
-//         }
-
-//         if (!order.paymentInfo?.paymentId) {
-//             return res.status(400).json({ message: "No payment found" });
-//         }
-
-//         if (order.refundInfo?.refundId) {
-//             return res.status(400).json({ message: "Refund already processed" });
-//         }
-
-//         const refundAmount = amount || order.totalAmount;
-
-//         const refund = await razorpay.payments.refund(
-//             order.paymentInfo.paymentId,
-//             {
-//                 amount: refundAmount * 100,
-//                 speed: 'optimum',
-//                 notes: { reason: reason || 'Manual refund by admin' }
-//             }
-//         );
-
-//         const estimatedSettlement = new Date();
-//         estimatedSettlement.setDate(estimatedSettlement.getDate() + 7);
-
-//         order.refundInfo = {
-//             refundId: refund.id,
-//             amount: refund.amount / 100,
-//             status: refund.status,
-//             speed: 'optimum',
-//             reason: reason || 'Manual refund by admin',
-//             createdAt: new Date(refund.created_at * 1000),
-//             estimatedSettlement,
-//             notes: `Manual refund processed.`
-//         };
-
-//         order.status = 'Cancelled';
-//         await order.save();
-
-//         console.log('Manual refund processed:', refund.id);
-
-//         res.status(200).json({
-//             message: "Refund processed successfully",
-//             refund: order.refundInfo
-//         });
-//     } catch (error) {
-//         console.error("Manual refund failed:", error);
-//         logger.error("Manual refund error:", error);
-//         res.status(500).json({
-//             message: "Refund failed",
-//             error: error.message
-//         });
-//     }
-// });
-
-// // 6. GET ALL ORDERS (Admin) - MUST BE BEFORE /:orderId
-// router.get('/orders', async (req, res) => {
-//     console.log('Fetching all orders (admin)');
-
-//     try {
-//         const orders = await Order.find()
-//             .sort({ createdAt: -1 })
-//             .lean();
-
-//         console.log(`Found ${orders.length} total orders`);
-
-//         res.status(200).json({
-//             orders,
-//             totalCount: orders.length
-//         });
-//     } catch (error) {
-//         console.error("Error fetching all orders:", error);
-//         logger.error("Error fetching all orders:", error);
-//         res.status(500).json({ message: "Server error", error: error.message });
-//     }
-// });
-
-// // 7. GET SINGLE ORDER BY ID - GENERIC ROUTE (MUST BE LAST)
-// router.get('/orders/:orderId', async (req, res) => {
-//     const { orderId } = req.params;
-
-//     console.log('Fetching single order:', orderId);
-
-//     try {
-//         const order = await Order.findById(orderId).lean();
-
-//         if (!order) {
-//             return res.status(404).json({ message: "Order not found" });
-//         }
-
-//         res.status(200).json({
-//             order,
-//             source: 'database'
-//         });
-//     } catch (error) {
-//         console.error("Error fetching order:", error);
-//         logger.error("Error fetching order:", error);
-//         res.status(500).json({ message: "Server error", error: error.message });
-//     }
-// });
-
-// // 8. PAYMENT STATUS (for backward compatibility)
-// router.get('/paymentStatus/:orderId', async (req, res) => {
-//     const { orderId } = req.params;
-
-//     console.log('Fetching payment status for order:', orderId);
-
-//     try {
-//         const order = await Order.findById(orderId);
-//         if (!order) {
-//             return res.status(404).json({ message: "Order not found" });
-//         }
-
-//         res.status(200).json({
-//             paymentInfo: order.paymentInfo || {
-//                 status: 'unknown',
-//                 amount: order.totalAmount
-//             },
-//             refundInfo: order.refundInfo || null
-//         });
-//     } catch (error) {
-//         console.error("Error fetching payment status:", error);
-//         res.status(500).json({ message: "Server error", error: error.message });
-//     }
-// });
-
-// // Health check
-// router.get('/test-payment-route', (req, res) => {
-//     res.json({
-//         message: "Payment route is working",
-//         timestamp: new Date().toISOString()
-//     });
-// });
-
-// module.exports = router;
-
-
-// // 5:
-// const express = require('express');
-// const router = express.Router();
-// const Order = require('../models/order');
-// const { logger } = require("../utils/logger");
-// const Razorpay = require('razorpay');
-// const nodemailer = require('nodemailer');
-
-// // Initialize Razorpay
-// const razorpay = new Razorpay({
-//     key_id: process.env.RAZORPAY_KEY_ID,
-//     key_secret: process.env.RAZORPAY_KEY_SECRET,
-// });
-
-// const transporter = nodemailer.createTransport({
-//     service: 'gmail',
-//     auth: {
-//         user: process.env.EMAIL_USERNAME,
-//         pass: process.env.EMAIL_PASSWORD,
-//     },
-// });
-
-// const sendOrderEmail = async (toEmail, orderData) => {
-//     const recipients = [toEmail];
-
-//     // Also send to company email if it's different from user email
-//     if (toEmail !== process.env.EMAIL_USERNAME) {
-//         recipients.push(process.env.EMAIL_USERNAME);
-//     }
-
-//     const { items, totalAmount, _id: orderId, address, phone, createdAt } = orderData;
-
-//     // Format date
-//     const orderDate = new Date(createdAt || Date.now()).toLocaleDateString('en-IN', {
-//         weekday: 'long',
-//         year: 'numeric',
-//         month: 'long',
-//         day: 'numeric'
-//     });
-
-//     // Calculate subtotal and format items
-//     const itemsHTML = items.map((item, index) => `
-//         <tr style="border-bottom: 1px solid #eee;">
-//             <td style="padding: 15px 10px; vertical-align: top;">
-//                 <div style="font-weight: 600; color: #333; margin-bottom: 4px;">${item.name}</div>
-//                 <div style="font-size: 13px; color: #666;">Quantity: ${item.quantity}</div>
-//             </td>
-//             <td style="padding: 15px 10px; text-align: right; vertical-align: top; font-weight: 600; color: #333;">
-//                 ₹${item.price.toLocaleString('en-IN')}
-//             </td>
-//         </tr>
-//     `).join('');
-
-//     const mailOptions = {
-//         from: `"Chauhan Sons Jewellers" <${process.env.EMAIL_USERNAME}>`,
-//         to: recipients.join(', '),
-//         subject: `Order Confirmed - #${orderId}`,
-//         html: `
-// <!DOCTYPE html>
-// <html>
-// <head>
-//     <meta charset="UTF-8">
-//     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-//     <title>Order Confirmation</title>
-// </head>
-// <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f5f5;">
-//     <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 20px 0;">
-//         <tr>
-//             <td align="center">
-//                 <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; max-width: 600px; width: 100%;">
-
-//                     <!-- Header -->
-//                     <tr>
-//                         <td style="background: linear-gradient(135deg, #7d2a25 0%, #5a1f1a 100%); padding: 30px; text-align: center;">
-//                             <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;">Chauhan Sons Jewellers</h1>
-//                             <p style="margin: 8px 0 0 0; color: #f0d4b0; font-size: 14px; letter-spacing: 1px;">FINE JEWELRY SINCE 1969</p>
-//                         </td>
-//                     </tr>
-
-//                     <!-- Success Message -->
-//                     <tr>
-//                         <td style="padding: 40px 30px 30px; text-align: center; border-bottom: 3px solid #7d2a25;">
-//                             <div style="display: inline-block; background-color: #e8f5e9; border-radius: 50%; width: 60px; height: 60px; line-height: 60px; margin-bottom: 20px;">
-//                                 <span style="color: #2e7d32; font-size: 32px;">✓</span>
-//                             </div>
-//                             <h2 style="margin: 0 0 10px 0; color: #2e7d32; font-size: 24px; font-weight: 600;">Order Confirmed!</h2>
-//                             <p style="margin: 0; color: #666; font-size: 15px;">Thank you for your purchase. Your order has been received and is being processed.</p>
-//                         </td>
-//                     </tr>
-
-//                     <!-- Order Info -->
-//                     <tr>
-//                         <td style="padding: 30px;">
-//                             <table width="100%" cellpadding="0" cellspacing="0">
-//                                 <tr>
-//                                     <td style="padding-bottom: 20px;">
-//                                         <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9f9f9; border-radius: 8px; padding: 20px;">
-//                                             <tr>
-//                                                 <td style="width: 50%; padding: 10px;">
-//                                                     <div style="font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;">Order Number</div>
-//                                                     <div style="font-size: 16px; color: #333; font-weight: 600;">#${orderId}</div>
-//                                                 </td>
-//                                                 <td style="width: 50%; padding: 10px; text-align: right;">
-//                                                     <div style="font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;">Order Date</div>
-//                                                     <div style="font-size: 16px; color: #333; font-weight: 600;">${orderDate}</div>
-//                                                 </td>
-//                                             </tr>
-//                                         </table>
-//                                     </td>
-//                                 </tr>
-//                             </table>
-
-//                             <!-- Order Items -->
-//                             <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 20px; border: 1px solid #eee; border-radius: 8px; overflow: hidden;">
-//                                 <thead>
-//                                     <tr style="background-color: #f9f9f9;">
-//                                         <th style="padding: 15px 10px; text-align: left; font-size: 13px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Item</th>
-//                                         <th style="padding: 15px 10px; text-align: right; font-size: 13px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Price</th>
-//                                     </tr>
-//                                 </thead>
-//                                 <tbody>
-//                                     ${itemsHTML}
-//                                 </tbody>
-//                             </table>
-
-//                             <!-- Order Summary -->
-//                             <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 20px;">
-//                                 <tr>
-//                                     <td style="padding: 15px 0; border-top: 2px solid #eee;">
-//                                         <table width="100%" cellpadding="0" cellspacing="0">
-//                                             <tr>
-//                                                 <td style="padding: 8px 0; color: #666; font-size: 15px;">Subtotal</td>
-//                                                 <td style="padding: 8px 0; text-align: right; color: #333; font-size: 15px; font-weight: 500;">₹${totalAmount.toLocaleString('en-IN')}</td>
-//                                             </tr>
-//                                             <tr>
-//                                                 <td style="padding: 8px 0; color: #666; font-size: 15px;">Shipping</td>
-//                                                 <td style="padding: 8px 0; text-align: right; color: #2e7d32; font-size: 15px; font-weight: 600;">FREE</td>
-//                                             </tr>
-//                                             <tr>
-//                                                 <td style="padding: 15px 0 0 0; color: #333; font-size: 18px; font-weight: 700; border-top: 2px solid #7d2a25;">Order Total</td>
-//                                                 <td style="padding: 15px 0 0 0; text-align: right; color: #7d2a25; font-size: 20px; font-weight: 700; border-top: 2px solid #7d2a25;">₹${totalAmount.toLocaleString('en-IN')}</td>
-//                                             </tr>
-//                                         </table>
-//                                     </td>
-//                                 </tr>
-//                             </table>
-
-//                             <!-- Delivery Info -->
-//                             <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 30px;">
-//                                 <tr>
-//                                     <td>
-//                                         <div style="background-color: #f9f9f9; border-radius: 8px; padding: 20px; border-left: 4px solid #7d2a25;">
-//                                             <h3 style="margin: 0 0 15px 0; color: #333; font-size: 16px; font-weight: 600;">Delivery Address</h3>
-//                                             <p style="margin: 0 0 8px 0; color: #666; font-size: 14px; line-height: 1.6;">${address}</p>
-//                                             <p style="margin: 0; color: #666; font-size: 14px;">
-//                                                 <strong style="color: #333;">Contact:</strong> ${phone}
-//                                             </p>
-//                                         </div>
-//                                     </td>
-//                                 </tr>
-//                             </table>
-
-//                             <!-- What's Next -->
-//                             <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 30px;">
-//                                 <tr>
-//                                     <td>
-//                                         <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px; font-weight: 600;">What happens next?</h3>
-//                                         <table width="100%" cellpadding="0" cellspacing="0">
-//                                             <tr>
-//                                                 <td style="padding: 12px 0; vertical-align: top; width: 30px;">
-//                                                     <div style="background-color: #7d2a25; color: #fff; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; font-size: 12px; font-weight: 600;">1</div>
-//                                                 </td>
-//                                                 <td style="padding: 12px 0; color: #666; font-size: 14px; line-height: 1.6;">
-//                                                     We'll send you a shipping confirmation email with tracking details
-//                                                 </td>
-//                                             </tr>
-//                                             <tr>
-//                                                 <td style="padding: 12px 0; vertical-align: top;">
-//                                                     <div style="background-color: #7d2a25; color: #fff; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; font-size: 12px; font-weight: 600;">2</div>
-//                                                 </td>
-//                                                 <td style="padding: 12px 0; color: #666; font-size: 14px; line-height: 1.6;">
-//                                                     Your order will be carefully packaged and shipped
-//                                                 </td>
-//                                             </tr>
-//                                             <tr>
-//                                                 <td style="padding: 12px 0; vertical-align: top;">
-//                                                     <div style="background-color: #7d2a25; color: #fff; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; font-size: 12px; font-weight: 600;">3</div>
-//                                                 </td>
-//                                                 <td style="padding: 12px 0; color: #666; font-size: 14px; line-height: 1.6;">
-//                                                     Enjoy your beautiful jewelry from Chauhan Sons!
-//                                                 </td>
-//                                             </tr>
-//                                         </table>
-//                                     </td>
-//                                 </tr>
-//                             </table>
-
-//                             <!-- CTA Button -->
-//                             <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 30px;">
-//                                 <tr>
-//                                     <td align="center">
-//                                         <a href="https://chauhansonsjewellers.com" style="display: inline-block; background: linear-gradient(135deg, #7d2a25 0%, #5a1f1a 100%); color: #ffffff; text-decoration: none; padding: 14px 40px; border-radius: 6px; font-weight: 600; font-size: 15px; letter-spacing: 0.5px;">View Order Status</a>
-//                                     </td>
-//                                 </tr>
-//                             </table>
-
-//                         </td>
-//                     </tr>
-
-//                     <!-- Footer -->
-//                     <tr>
-//                         <td style="background-color: #f9f9f9; padding: 30px; text-align: center; border-top: 1px solid #eee;">
-//                             <p style="margin: 0 0 10px 0; color: #666; font-size: 14px;">Need help with your order?</p>
-//                             <p style="margin: 0 0 15px 0;">
-//                                 <a href="mailto:chauhansons69@yahoo.com" style="color: #7d2a25; text-decoration: none; font-weight: 600;">Contact Customer Support</a>
-//                             </p>
-//                             <div style="margin: 20px 0; padding-top: 20px; border-top: 1px solid #ddd;">
-//                                 <p style="margin: 0 0 8px 0; color: #999; font-size: 12px;">Chauhan Sons Jewellers</p>
-//                                 <p style="margin: 0; color: #999; font-size: 12px;">© ${new Date().getFullYear()} All rights reserved</p>
-//                             </div>
-//                         </td>
-//                     </tr>
-
-//                 </table>
-//             </td>
-//         </tr>
-//     </table>
-// </body>
-// </html>
-//         `,
-//     };
-
-//     return transporter.sendMail(mailOptions);
-// };
-
-// // Fetch live payment status from Razorpay
-// const fetchLivePaymentStatus = async (paymentId) => {
-//     try {
-//         const payment = await razorpay.payments.fetch(paymentId);
-//         return {
-//             status: payment.status,
-//             method: payment.method,
-//             amount: payment.amount / 100,
-//             captured: payment.captured,
-//             updatedAt: new Date(payment.created_at * 1000)
-//         };
-//     } catch (error) {
-//         logger.error('Failed to fetch live payment status:', error);
-//         return null;
-//     }
-// };
-
-// // Fetch live refund status from Razorpay
-// const fetchLiveRefundStatus = async (refundId) => {
-//     try {
-//         const refund = await razorpay.refunds.fetch(refundId);
-//         return {
-//             status: refund.status,
-//             amount: refund.amount / 100,
-//             speedProcessed: refund.speed_processed,
-//             updatedAt: new Date()
-//         };
-//     } catch (error) {
-//         logger.error('Failed to fetch live refund status:', error);
-//         return null;
-//     }
-// };
-
-// // ============================================
-// // ROUTES - ORDERED FROM MOST TO LEAST SPECIFIC
-// // ============================================
-
-// // 0. HEALTH CHECK - Most specific path
-// router.get('/test-payment-route', (req, res) => {
-//     res.json({
-//         message: "Payment route is working",
-//         timestamp: new Date().toISOString(),
-//         razorpayConfigured: !!(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET)
-//     });
-// });
-
-// // 1. CREATE ORDER
-// router.post('/createOrder', async (req, res) => {
-//     const { userId, items, address, phone, totalAmount, email } = req.body;
-
-//     console.log('📦 Creating order for userId:', userId);
-
-//     if (!userId || !items?.length || !address || !phone || !totalAmount || !email) {
-//         return res.status(400).json({ message: "Missing required fields" });
-//     }
-
-//     try {
-//         // Create Razorpay order with AUTOMATIC capture enabled
-//         const razorpayOrder = await razorpay.orders.create({
-//             amount: totalAmount * 100,
-//             currency: "INR",
-//             receipt: `order_${Date.now()}`,
-//             payment_capture: 1, // Auto-capture enabled (1 = automatic, 0 = manual)
-//             notes: {
-//                 userId: userId,
-//                 email: email
-//             }
-//         });
-
-//         const newOrder = new Order({
-//             userId,
-//             items,
-//             address,
-//             phone,
-//             totalAmount,
-//             razorpayOrderId: razorpayOrder.id,
-//             status: 'Pending',
-//             paymentInfo: {
-//                 status: 'created',
-//                 amount: totalAmount,
-//                 updatedAt: new Date(),
-//             },
-//         });
-
-//         await newOrder.save();
-
-//         // Send email asynchronously
-//         sendOrderEmail(email, newOrder).catch(err =>
-//             logger.error("Email failed:", err.message)
-//         );
-
-//         console.log('✅ Order created:', newOrder._id);
-
-//         res.status(201).json({
-//             message: "Order created successfully",
-//             orderId: newOrder._id,
-//             razorpayOrderId: razorpayOrder.id,
-//             razorpayKeyId: process.env.RAZORPAY_KEY_ID,
-//         });
-//     } catch (error) {
-//         logger.error("Order creation failed:", error);
-//         res.status(500).json({ message: "Failed to create order", error: error.message });
-//     }
-// });
-
-// // 2. CAPTURE PAYMENT MANUALLY (if needed for authorized payments)
-// router.post('/capturePayment/:orderId', async (req, res) => {
-//     const { orderId } = req.params;
-
-//     console.log('💳 Manual capture requested for order:', orderId);
-
-//     try {
-//         const order = await Order.findById(orderId);
-
-//         if (!order) {
-//             return res.status(404).json({ message: "Order not found" });
-//         }
-
-//         if (!order.paymentInfo?.paymentId) {
-//             return res.status(400).json({ message: "No payment ID found" });
-//         }
-
-//         if (order.paymentInfo.status !== 'authorized') {
-//             return res.status(400).json({
-//                 message: `Payment cannot be captured. Current status: ${order.paymentInfo.status}`
-//             });
-//         }
-
-//         // Capture the authorized payment
-//         const payment = await razorpay.payments.capture(
-//             order.paymentInfo.paymentId,
-//             order.totalAmount * 100,
-//             "INR"
-//         );
-
-//         // Update order with captured payment info
-//         order.paymentInfo = {
-//             paymentId: payment.id,
-//             amount: payment.amount / 100,
-//             status: 'captured',
-//             method: payment.method,
-//             updatedAt: new Date(),
-//             captured: true
-//         };
-
-//         order.paymentCompleted = true;
-//         order.paymentCompletedAt = new Date();
-
-//         await order.save();
-
-//         console.log('✅ Payment captured successfully:', payment.id);
-
-//         res.status(200).json({
-//             message: "Payment captured successfully",
-//             paymentInfo: order.paymentInfo
-//         });
-
-//     } catch (error) {
-//         console.error('❌ Payment capture failed:', error);
-//         logger.error("Payment capture error:", error);
-//         res.status(500).json({
-//             message: "Failed to capture payment",
-//             error: error.error?.description || error.message
-//         });
-//     }
-// });
-
-// // 3. GET USER ORDERS WITH LIVE STATUS - SPECIFIC before /:orderId
-// router.get('/user/:userId/orders', async (req, res) => {
-//     const { userId } = req.params;
-//     const { includeLiveStatus } = req.query;
-
-//     console.log('📋 Fetching orders for userId:', userId);
-
-//     try {
-//         const orders = await Order.find({ userId })
-//             .sort({ createdAt: -1 })
-//             .lean();
-
-//         // If live status requested, fetch from Razorpay
-//         if (includeLiveStatus === 'true') {
-//             for (let order of orders) {
-//                 // Update payment status if paymentId exists
-//                 if (order.paymentInfo?.paymentId) {
-//                     const livePayment = await fetchLivePaymentStatus(order.paymentInfo.paymentId);
-//                     if (livePayment) {
-//                         order.paymentInfo.liveStatus = livePayment.status;
-//                         order.paymentInfo.captured = livePayment.captured;
-//                     }
-//                 }
-
-//                 // Update refund status if refundId exists
-//                 if (order.refundInfo?.refundId) {
-//                     const liveRefund = await fetchLiveRefundStatus(order.refundInfo.refundId);
-//                     if (liveRefund) {
-//                         order.refundInfo.liveStatus = liveRefund.status;
-//                     }
-//                 }
-//             }
-//         }
-
-//         console.log(`✅ Found ${orders.length} orders for user ${userId}`);
-
-//         res.status(200).json({
-//             orders,
-//             totalCount: orders.length,
-//             source: includeLiveStatus === 'true' ? 'live' : 'database'
-//         });
-//     } catch (error) {
-//         console.error("❌ Error fetching user orders:", error);
-//         logger.error("Error fetching user orders:", error);
-//         res.status(500).json({ message: "Server error", error: error.message });
-//     }
-// });
-
-// // 4. GET ALL ORDERS (Admin) WITH LIVE STATUS - Before /:orderId
-// router.get('/admin/orders', async (req, res) => {
-//     const { includeLiveStatus } = req.query;
-
-//     console.log('👨‍💼 Fetching all orders (admin)');
-
-//     try {
-//         const orders = await Order.find()
-//             .sort({ createdAt: -1 })
-//             .lean();
-
-//         // Optionally fetch live status
-//         if (includeLiveStatus === 'true') {
-//             for (let order of orders) {
-//                 if (order.paymentInfo?.paymentId) {
-//                     const livePayment = await fetchLivePaymentStatus(order.paymentInfo.paymentId);
-//                     if (livePayment) {
-//                         order.paymentInfo.liveStatus = livePayment.status;
-//                     }
-//                 }
-
-//                 if (order.refundInfo?.refundId) {
-//                     const liveRefund = await fetchLiveRefundStatus(order.refundInfo.refundId);
-//                     if (liveRefund) {
-//                         order.refundInfo.liveStatus = liveRefund.status;
-//                     }
-//                 }
-//             }
-//         }
-
-//         console.log(`✅ Found ${orders.length} total orders`);
-
-//         res.status(200).json({
-//             orders,
-//             totalCount: orders.length,
-//             source: includeLiveStatus === 'true' ? 'live' : 'database'
-//         });
-//     } catch (error) {
-//         console.error("❌ Error fetching all orders:", error);
-//         logger.error("Error fetching all orders:", error);
-//         res.status(500).json({ message: "Server error", error: error.message });
-//     }
-// });
-
-// // 5. GET REFUND STATUS WITH LIVE SYNC - SPECIFIC before /:orderId
-// router.get('/:orderId/refund-status', async (req, res) => {
-//     const { orderId } = req.params;
-
-//     console.log('🔄 Fetching refund status for orderId:', orderId);
-
-//     try {
-//         const order = await Order.findById(orderId);
-//         if (!order) {
-//             return res.status(404).json({ message: "Order not found" });
-//         }
-
-//         if (!order.refundInfo?.refundId) {
-//             return res.status(200).json({
-//                 message: "No refund found",
-//                 refundInfo: null
-//             });
-//         }
-
-//         // Fetch live status from Razorpay
-//         try {
-//             const refund = await razorpay.refunds.fetch(order.refundInfo.refundId);
-
-//             // Update if status changed
-//             if (order.refundInfo.status !== refund.status) {
-//                 order.refundInfo.status = refund.status;
-
-//                 if (refund.status === 'processed') {
-//                     order.refundInfo.processedAt = new Date();
-//                     order.status = 'Refunded';
-//                 }
-
-//                 await order.save();
-//                 console.log('✅ Refund status updated:', refund.status);
-//             }
-
-//             res.status(200).json({
-//                 refundInfo: order.refundInfo,
-//                 liveStatus: refund.status,
-//                 source: 'razorpay'
-//             });
-//         } catch (rzpError) {
-//             console.log('⚠️ Could not fetch live refund status:', rzpError.message);
-//             // Return cached status
-//             res.status(200).json({
-//                 refundInfo: order.refundInfo,
-//                 liveStatus: order.refundInfo.status,
-//                 source: 'cache',
-//                 note: "Using cached status - Razorpay API unavailable"
-//             });
-//         }
-//     } catch (error) {
-//         logger.error("Error fetching refund status:", error);
-//         res.status(500).json({ message: "Server error", error: error.message });
-//     }
-// });
-
-// // 6. UPDATE ORDER STATUS WITH AUTO-REFUND - SPECIFIC before /:orderId
-// router.put('/:orderId/status', async (req, res) => {
-//     const { orderId } = req.params;
-//     const { status, cancelReason } = req.body;
-
-//     console.log('📝 Updating order status:', { orderId, status, cancelReason });
-
-//     if (!['Pending', 'Delivered', 'Cancelled'].includes(status)) {
-//         return res.status(400).json({ message: "Invalid status" });
-//     }
-
-//     try {
-//         const order = await Order.findById(orderId);
-//         if (!order) {
-//             return res.status(404).json({ message: "Order not found" });
-//         }
-
-//         let refundProcessed = false;
-
-//         // AUTO-REFUND LOGIC: Process refund ONLY if cancelling a captured payment
-//         if (status === 'Cancelled' &&
-//             order.status !== 'Cancelled' &&
-//             order.paymentInfo?.status === 'captured' &&
-//             order.paymentInfo?.paymentId &&
-//             !order.refundInfo?.refundId) {
-
-//             try {
-//                 console.log('🔄 Processing automatic refund for order:', orderId);
-
-//                 const refund = await razorpay.payments.refund(
-//                     order.paymentInfo.paymentId,
-//                     {
-//                         amount: order.totalAmount * 100,
-//                         speed: 'optimum', // Options: normal, optimum
-//                         notes: {
-//                             reason: cancelReason || 'Cancelled by admin',
-//                             orderId: order._id.toString()
-//                         }
-//                     }
-//                 );
-
-//                 const estimatedDays = 5; // Optimum speed typically 5-7 days
-//                 const estimatedSettlement = new Date();
-//                 estimatedSettlement.setDate(estimatedSettlement.getDate() + estimatedDays);
-
-//                 order.refundInfo = {
-//                     refundId: refund.id,
-//                     amount: refund.amount / 100,
-//                     status: refund.status,
-//                     speed: 'optimum',
-//                     reason: cancelReason || 'Cancelled by admin',
-//                     createdAt: new Date(refund.created_at * 1000),
-//                     estimatedSettlement,
-//                     notes: `Automatic refund initiated. Expected settlement in ${estimatedDays} business days.`
-//                 };
-
-//                 refundProcessed = true;
-//                 console.log('✅ Refund processed successfully:', refund.id);
-//             } catch (refundError) {
-//                 console.error('❌ Refund failed:', refundError);
-//                 logger.error("Refund error:", refundError);
-//                 // Continue with cancellation even if refund fails
-//                 order.refundInfo = {
-//                     status: 'failed',
-//                     reason: cancelReason || 'Cancelled by admin',
-//                     error: refundError.error?.description || refundError.message,
-//                     notes: 'Automatic refund failed - manual intervention required'
-//                 };
-//             }
-//         }
-
-//         // Update order status
-//         order.status = status;
-//         if (status === 'Cancelled') {
-//             order.cancelReason = cancelReason || 'Cancelled by admin';
-//             order.cancelledBy = 'admin';
-//             order.cancelledAt = new Date();
-//         }
-
-//         await order.save();
-
-//         console.log('✅ Order status updated:', { orderId, status, refundProcessed });
-
-//         res.status(200).json({
-//             message: "Order status updated successfully",
-//             order,
-//             refundProcessed,
-//             refundInfo: order.refundInfo || null
-//         });
-//     } catch (error) {
-//         console.error("❌ Error updating order status:", error);
-//         logger.error("Error updating order status:", error);
-//         res.status(500).json({ message: "Server error", error: error.message });
-//     }
-// });
-
-// // 7. MANUAL REFUND ENDPOINT - SPECIFIC before /:orderId
-// router.post('/:orderId/refund', async (req, res) => {
-//     const { orderId } = req.params;
-//     const { amount, reason, speed = 'optimum' } = req.body;
-
-//     console.log('💰 Processing manual refund for order:', orderId);
-
-//     try {
-//         const order = await Order.findById(orderId);
-//         if (!order) {
-//             return res.status(404).json({ message: "Order not found" });
-//         }
-
-//         if (!order.paymentInfo?.paymentId) {
-//             return res.status(400).json({ message: "No payment found to refund" });
-//         }
-
-//         if (order.paymentInfo.status !== 'captured') {
-//             return res.status(400).json({
-//                 message: `Payment not captured. Current status: ${order.paymentInfo.status}`
-//             });
-//         }
-
-//         if (order.refundInfo?.refundId) {
-//             return res.status(400).json({
-//                 message: "Refund already processed",
-//                 existingRefund: order.refundInfo
-//             });
-//         }
-
-//         const refundAmount = amount || order.totalAmount;
-
-//         const refund = await razorpay.payments.refund(
-//             order.paymentInfo.paymentId,
-//             {
-//                 amount: refundAmount * 100,
-//                 speed: speed, // 'normal' or 'optimum'
-//                 notes: {
-//                     reason: reason || 'Manual refund by admin',
-//                     orderId: order._id.toString()
-//                 }
-//             }
-//         );
-
-//         const estimatedDays = speed === 'optimum' ? 5 : 7;
-//         const estimatedSettlement = new Date();
-//         estimatedSettlement.setDate(estimatedSettlement.getDate() + estimatedDays);
-
-//         order.refundInfo = {
-//             refundId: refund.id,
-//             amount: refund.amount / 100,
-//             status: refund.status,
-//             speed: speed,
-//             reason: reason || 'Manual refund by admin',
-//             createdAt: new Date(refund.created_at * 1000),
-//             estimatedSettlement,
-//             notes: `Manual refund processed. Expected settlement in ${estimatedDays} business days.`
-//         };
-
-//         if (order.status !== 'Cancelled') {
-//             order.status = 'Cancelled';
-//             order.cancelReason = reason || 'Manual refund by admin';
-//             order.cancelledBy = 'admin';
-//             order.cancelledAt = new Date();
-//         }
-
-//         await order.save();
-
-//         console.log('✅ Manual refund processed:', refund.id);
-
-//         res.status(200).json({
-//             message: "Refund processed successfully",
-//             refund: order.refundInfo,
-//             order: {
-//                 _id: order._id,
-//                 status: order.status,
-//                 totalAmount: order.totalAmount
-//             }
-//         });
-//     } catch (error) {
-//         console.error("❌ Manual refund failed:", error);
-//         logger.error("Manual refund error:", error);
-//         res.status(500).json({
-//             message: "Refund failed",
-//             error: error.error?.description || error.message
-//         });
-//     }
-// });
-
-// // 8. PAYMENT STATUS (backward compatibility)
-// router.get('/paymentStatus/:orderId', async (req, res) => {
-//     const { orderId } = req.params;
-
-//     console.log('💳 Fetching payment status for order:', orderId);
-
-//     try {
-//         const order = await Order.findById(orderId);
-//         if (!order) {
-//             return res.status(404).json({ message: "Order not found" });
-//         }
-
-//         // Optionally fetch live status
-//         let livePaymentStatus = null;
-//         if (order.paymentInfo?.paymentId) {
-//             livePaymentStatus = await fetchLivePaymentStatus(order.paymentInfo.paymentId);
-//         }
-
-//         res.status(200).json({
-//             paymentInfo: order.paymentInfo || {
-//                 status: 'unknown',
-//                 amount: order.totalAmount
-//             },
-//             livePaymentStatus,
-//             refundInfo: order.refundInfo || null
-//         });
-//     } catch (error) {
-//         console.error("❌ Error fetching payment status:", error);
-//         res.status(500).json({ message: "Server error", error: error.message });
-//     }
-// });
-
-// // 9. GET SINGLE ORDER BY ID - GENERIC (MUST BE LAST)
-// router.get('/:orderId', async (req, res) => {
-//     const { orderId } = req.params;
-
-//     console.log('🔍 Fetching single order:', orderId);
-
-//     try {
-//         const order = await Order.findById(orderId).lean();
-
-//         if (!order) {
-//             return res.status(404).json({ message: "Order not found" });
-//         }
-
-//         // Fetch live statuses
-//         if (order.paymentInfo?.paymentId) {
-//             const livePayment = await fetchLivePaymentStatus(order.paymentInfo.paymentId);
-//             if (livePayment) {
-//                 order.paymentInfo.liveStatus = livePayment.status;
-//             }
-//         }
-
-//         if (order.refundInfo?.refundId) {
-//             const liveRefund = await fetchLiveRefundStatus(order.refundInfo.refundId);
-//             if (liveRefund) {
-//                 order.refundInfo.liveStatus = liveRefund.status;
-//             }
-//         }
-
-//         console.log('✅ Order fetched:', orderId);
-
-//         res.status(200).json({
-//             order,
-//             source: 'database_with_live_sync'
-//         });
-//     } catch (error) {
-//         console.error("❌ Error fetching order:", error);
-//         logger.error("Error fetching order:", error);
-//         res.status(500).json({ message: "Server error", error: error.message });
-//     }
-// });
-
-// module.exports = router;
-
-// // 7:
+// // final:
 const express = require('express');
 const router = express.Router();
 const Order = require('../models/order');
+const Admin = require('../models/admin');
 const { logger } = require("../utils/logger");
 const Razorpay = require('razorpay');
-const nodemailer = require('nodemailer');
 
-// Initialize Razorpay
-const razorpay = new Razorpay({
+// Initialize Razorpay instance
+const razorpayInstance = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID,
     key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
-// Initialize nodemailer
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USERNAME,
-        pass: process.env.EMAIL_PASSWORD,
-    },
-});
 
-// Email sending function
-const sendOrderEmail = async (toEmail, orderData) => {
-    const recipients = [toEmail];
-    if (toEmail !== process.env.EMAIL_USERNAME) {
-        recipients.push(process.env.EMAIL_USERNAME);
-    }
-
-    const { items, totalAmount, _id: orderId, address, phone, createdAt } = orderData;
-    const orderDate = new Date(createdAt || Date.now()).toLocaleDateString('en-IN', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-    });
-
-    const itemsHTML = items.map((item) => `
-        <tr style="border-bottom: 1px solid #eee;">
-            <td style="padding: 15px 10px;">
-                <div style="font-weight: 600; color: #333;">${item.name}</div>
-                <div style="font-size: 13px; color: #666;">Qty: ${item.quantity}</div>
-            </td>
-            <td style="padding: 15px 10px; text-align: right; font-weight: 600;">
-                ₹${item.price.toLocaleString('en-IN')}
-            </td>
-        </tr>
-    `).join('');
-
-    const mailOptions = {
-        from: `"Chauhan Sons Jewellers" <${process.env.EMAIL_USERNAME}>`,
-        to: recipients.join(', '),
-        subject: `Order Confirmed - #${orderId}`,
-        html: `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Order Confirmation</title>
-</head>
-<body style="font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5;">
-    <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden;">
-        <div style="background: linear-gradient(135deg, #7d2a25 0%, #5a1f1a 100%); padding: 30px; text-align: center;">
-            <h1 style="color: white; margin: 0;">Chauhan Sons Jewellers</h1>
-            <p style="color: #f0d4b0; margin: 10px 0 0;">Order Confirmed ✓</p>
-        </div>
-        
-        <div style="padding: 30px;">
-            <h2 style="color: #2e7d32;">Thank you for your order!</h2>
-            <p style="color: #666;">Order #${orderId}</p>
-            <p style="color: #666;">Date: ${orderDate}</p>
-            
-            <table style="width: 100%; margin: 20px 0; border: 1px solid #eee; border-radius: 8px;">
-                <thead>
-                    <tr style="background: #f9f9f9;">
-                        <th style="padding: 10px; text-align: left;">Item</th>
-                        <th style="padding: 10px; text-align: right;">Price</th>
-                    </tr>
-                </thead>
-                <tbody>${itemsHTML}</tbody>
-            </table>
-            
-            <div style="text-align: right; margin-top: 20px; padding-top: 20px; border-top: 2px solid #7d2a25;">
-                <h3 style="color: #7d2a25; margin: 0;">Total: ₹${totalAmount.toLocaleString('en-IN')}</h3>
-            </div>
-            
-            <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-top: 20px;">
-                <p style="margin: 5px 0;"><strong>Delivery Address:</strong></p>
-                <p style="margin: 5px 0; color: #666;">${address}</p>
-                <p style="margin: 5px 0;"><strong>Contact:</strong> ${phone}</p>
-            </div>
-        </div>
-        
-        <div style="background: #f9f9f9; padding: 20px; text-align: center; border-top: 1px solid #eee;">
-            <p style="color: #999; font-size: 12px; margin: 0;">© ${new Date().getFullYear()} Chauhan Sons Jewellers</p>
-        </div>
-    </div>
-</body>
-</html>
-        `
-    };
-
-    try {
-        await transporter.sendMail(mailOptions);
-        console.log('✅ Email sent successfully to:', toEmail);
-    } catch (error) {
-        console.error('❌ Email sending failed:', error.message);
-        logger.error('Email error:', error);
-    }
-};
-
-// Helper: Fetch live payment status
-const fetchLivePaymentStatus = async (paymentId) => {
-    try {
-        const payment = await razorpay.payments.fetch(paymentId);
-        return {
-            status: payment.status,
-            method: payment.method,
-            amount: payment.amount / 100,
-            captured: payment.captured,
-            updatedAt: new Date(payment.created_at * 1000)
-        };
-    } catch (error) {
-        logger.error('Failed to fetch payment status:', error);
-        return null;
-    }
-};
-
-// Helper: Fetch live refund status
-const fetchLiveRefundStatus = async (refundId) => {
-    try {
-        const refund = await razorpay.refunds.fetch(refundId);
-        return {
-            status: refund.status,
-            amount: refund.amount / 100,
-            speedProcessed: refund.speed_processed,
-            updatedAt: new Date()
-        };
-    } catch (error) {
-        logger.error('Failed to fetch refund status:', error);
-        return null;
-    }
-};
-
-// ============================================
-// ROUTES (Ordered from most to least specific)
-// ============================================
-
-// 1. CREATE ORDER (MOST IMPORTANT - FIX THE CALLBACK ERROR)
+// Create Order Route
 router.post('/createOrder', async (req, res) => {
-    const { userId, items, address, phone, totalAmount, email } = req.body;
+    const { userId, items, address, phone, totalAmount } = req.body;
 
-    console.log('📦 Creating order for userId:', userId);
-
-    // Validation
-    if (!userId || !items?.length || !address || !phone || !totalAmount || !email) {
-        return res.status(400).json({
-            message: "Missing required fields",
-            received: { userId, itemsCount: items?.length, address, phone, totalAmount, email }
-        });
-    }
+    console.log("=== CREATE ORDER REQUEST ===");
+    console.log("Full request body:", JSON.stringify(req.body, null, 2));
 
     try {
-        // Create Razorpay order with auto-capture
-        const razorpayOrder = await razorpay.orders.create({
-            amount: Math.round(totalAmount * 100), // Ensure integer
-            currency: "INR",
-            receipt: `order_${Date.now()}`,
-            payment_capture: 1, // Auto-capture
-            notes: {
-                userId: userId,
-                email: email
-            }
+        // Comprehensive validation
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                message: "User ID is required"
+            });
+        }
+
+        if (!items || !Array.isArray(items) || items.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Items are required and must be a non-empty array"
+            });
+        }
+
+        if (!address?.trim()) {
+            return res.status(400).json({
+                success: false,
+                message: "Address is required"
+            });
+        }
+
+        if (!phone?.toString().trim()) {
+            return res.status(400).json({
+                success: false,
+                message: "Phone number is required"
+            });
+        }
+
+        if (!totalAmount || totalAmount <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Valid total amount is required"
+            });
+        }
+
+        // Fetch user details
+        console.log("Fetching user with ID:", userId);
+        const user = await Admin.findById(userId);
+        if (!user) {
+            console.error("User not found:", userId);
+            return res.status(404).json({
+                success: false,
+                message: "User not found"
+            });
+        }
+
+        console.log("User found:", {
+            id: user._id,
+            email: user.email,
+            name: user.name
         });
 
-        console.log('✅ Razorpay order created:', razorpayOrder.id);
+        // Validate items structure
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            console.log(`Validating item ${i}:`, item);
+
+            if (!item.productId || !item.name || !item.quantity || item.quantity < 1 || item.price === undefined || item.price < 0) {
+                console.error(`Invalid item at index ${i}:`, item);
+                return res.status(400).json({
+                    success: false,
+                    message: `Invalid item at index ${i}. Each item needs productId, name, quantity (≥1), and price (≥0)`
+                });
+            }
+        }
+
+        // Calculate and validate total
+        const calculatedTotal = items.reduce((total, item) => {
+            return total + (parseFloat(item.price) * parseInt(item.quantity));
+        }, 0);
+
+        console.log("Amount validation:", {
+            calculatedTotal,
+            providedTotal: totalAmount,
+            difference: Math.abs(totalAmount - calculatedTotal)
+        });
+
+        if (Math.abs(totalAmount - calculatedTotal) > 0.01) {
+            return res.status(400).json({
+                success: false,
+                message: `Total amount mismatch. Expected: ${calculatedTotal}, Received: ${totalAmount}`
+            });
+        }
+
+        // Prepare phone number (ensure it starts with +91 and has 10 digits)
+        let formattedPhone = phone.toString().trim();
+        // Remove any existing country code
+        formattedPhone = formattedPhone.replace(/^\+91/, '').replace(/^91/, '');
+        // Validate 10 digits
+        if (!/^\d{10}$/.test(formattedPhone)) {
+            return res.status(400).json({
+                success: false,
+                message: "Phone number must be exactly 10 digits"
+            });
+        }
+        formattedPhone = `+91${formattedPhone}`;
+
+        console.log("Formatted phone:", formattedPhone);
+
+        // Check if razorpayInstance is properly initialized
+        if (!razorpayInstance) {
+            console.error("Razorpay instance not initialized!");
+            return res.status(500).json({
+                success: false,
+                message: "Payment gateway configuration error. Please contact support.",
+                error: "Razorpay not initialized"
+            });
+        }
+
+        // Verify Razorpay credentials are set
+        if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+            console.error("Razorpay credentials missing in environment variables");
+            return res.status(500).json({
+                success: false,
+                message: "Payment gateway configuration error. Please contact support.",
+                error: "Missing Razorpay credentials"
+            });
+        }
+
+        console.log("Razorpay credentials present:", {
+            keyId: process.env.RAZORPAY_KEY_ID?.substring(0, 10) + '...',
+            keySecretPresent: !!process.env.RAZORPAY_KEY_SECRET
+        });
+
+        // Create Razorpay Order with minimal required fields
+        console.log("Creating Razorpay order...");
+        const amountInPaise = Math.round(totalAmount * 100);
+        
+        const razorpayOrderData = {
+            amount: amountInPaise,
+            currency: "INR",
+            receipt: `order_${Date.now()}_${userId.toString().slice(-6)}`,
+            notes: {
+                userId: userId.toString(),
+                phone: formattedPhone,
+                itemCount: items.length.toString()
+            }
+        };
+
+        console.log("Razorpay order request:", JSON.stringify(razorpayOrderData, null, 2));
+
+        let razorpayOrder;
+        try {
+            razorpayOrder = await razorpayInstance.orders.create(razorpayOrderData);
+            console.log("Razorpay order created successfully:", {
+                id: razorpayOrder.id,
+                amount: razorpayOrder.amount,
+                currency: razorpayOrder.currency,
+                status: razorpayOrder.status
+            });
+        } catch (razorpayError) {
+            console.error("=== RAZORPAY ERROR ===");
+            console.error("Error type:", razorpayError.constructor.name);
+            console.error("Error message:", razorpayError.message);
+            console.error("Error details:", JSON.stringify(razorpayError, null, 2));
+            
+            // Extract detailed error info
+            let errorDetails = "Unknown error";
+            if (razorpayError.error) {
+                errorDetails = JSON.stringify(razorpayError.error);
+            } else if (razorpayError.description) {
+                errorDetails = razorpayError.description;
+            } else if (razorpayError.message) {
+                errorDetails = razorpayError.message;
+            }
+            
+            console.error("Extracted error details:", errorDetails);
+            
+            return res.status(500).json({
+                success: false,
+                message: "Failed to create payment order. Please try again.",
+                error: "Payment gateway error",
+                details: process.env.NODE_ENV === 'development' ? errorDetails : undefined
+            });
+        }
 
         // Create order in database
-        const newOrder = new Order({
-            userId,
-            items,
-            address,
-            phone,
-            totalAmount,
+        console.log("Creating database order...");
+        const orderData = {
+            userId: userId,
+            userEmail: user.email || '',
+            userName: user.name || 'Customer',
+            items: items.map(item => ({
+                productId: item.productId.toString(),
+                name: item.name.toString().trim(),
+                quantity: parseInt(item.quantity),
+                price: parseFloat(item.price)
+            })),
+            address: address.toString().trim(),
+            phone: formattedPhone,
+            totalAmount: parseFloat(totalAmount),
             razorpayOrderId: razorpayOrder.id,
-            status: 'Pending',
             paymentInfo: {
+                amount: parseFloat(totalAmount),
                 status: 'created',
-                amount: totalAmount,
-                updatedAt: new Date(),
+                razorpayOrderId: razorpayOrder.id,
+                updatedAt: new Date()
             },
-        });
+            status: 'Pending',
+            createdAt: new Date()
+        };
 
-        // Save order (using async/await - NO CALLBACK)
-        await newOrder.save();
-        console.log('✅ Order saved to database:', newOrder._id);
+        console.log("Database order data:", JSON.stringify(orderData, null, 2));
 
-        // Send email asynchronously (don't wait)
-        sendOrderEmail(email, newOrder).catch(err => {
-            console.error('Email failed but order created:', err.message);
-            logger.error("Email failed:", err);
-        });
+        let savedOrder;
+        try {
+            const newOrder = new Order(orderData);
+            savedOrder = await newOrder.save();
+            console.log("Database order created successfully:", savedOrder._id);
+        } catch (dbError) {
+            console.error("=== DATABASE ERROR ===");
+            console.error("Error name:", dbError.name);
+            console.error("Error message:", dbError.message);
+            console.error("Error details:", JSON.stringify(dbError, null, 2));
 
-        // Return success response
+            // Handle specific database errors
+            if (dbError.name === 'ValidationError') {
+                const validationErrors = Object.values(dbError.errors).map(e => e.message);
+                return res.status(400).json({
+                    success: false,
+                    message: "Order validation failed: " + validationErrors.join(', '),
+                    razorpayOrderId: razorpayOrder.id
+                });
+            }
+
+            if (dbError.code === 11000) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Duplicate order detected. Please try again.",
+                    razorpayOrderId: razorpayOrder.id
+                });
+            }
+
+            return res.status(500).json({
+                success: false,
+                message: "Failed to save order. Please contact support with Razorpay Order ID: " + razorpayOrder.id,
+                error: "Database error",
+                razorpayOrderId: razorpayOrder.id
+            });
+        }
+
+        // Log success
+        if (typeof logger !== 'undefined' && logger && typeof logger.info === 'function') {
+            logger.info("Order created successfully", {
+                orderId: savedOrder._id,
+                razorpayOrderId: razorpayOrder.id,
+                userId,
+                totalAmount
+            });
+        }
+
+        console.log("=== ORDER CREATION SUCCESS ===");
+
+        // Send success response
         res.status(201).json({
             success: true,
             message: "Order created successfully",
-            orderId: newOrder._id,
+            orderId: savedOrder._id.toString(),
             razorpayOrderId: razorpayOrder.id,
-            razorpayKeyId: process.env.RAZORPAY_KEY_ID,
+            order: {
+                _id: savedOrder._id.toString(),
+                status: savedOrder.status,
+                totalAmount: savedOrder.totalAmount,
+                createdAt: savedOrder.createdAt,
+                userEmail: savedOrder.userEmail,
+                userName: savedOrder.userName
+            }
         });
 
     } catch (error) {
-        console.error('❌ Order creation failed:', error);
-        logger.error("Order creation error:", error);
+        console.error("=== UNEXPECTED ERROR ===");
+        console.error("Error type:", error.constructor.name);
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+        console.error("Request data:", { 
+            userId, 
+            itemsCount: items?.length, 
+            totalAmount,
+            address: address?.substring(0, 50) + '...'
+        });
 
-        res.status(500).json({
+        // Log the error if logger is available
+        if (typeof logger !== 'undefined' && logger && typeof logger.error === 'function') {
+            logger.error("Order creation failed", {
+                error: error.message,
+                stack: error.stack,
+                userId,
+                totalAmount,
+                itemsCount: items?.length
+            });
+        }
+
+        // Handle different types of errors
+        let errorMessage = "Failed to create order. Please try again.";
+        let statusCode = 500;
+
+        if (error.name === 'CastError') {
+            errorMessage = "Invalid data format provided";
+            statusCode = 400;
+        } else if (error.name === 'ValidationError') {
+            errorMessage = "Order data validation failed";
+            statusCode = 400;
+        } else if (error.code === 11000) {
+            errorMessage = "Duplicate order detected";
+            statusCode = 400;
+        }
+
+        res.status(statusCode).json({
             success: false,
-            message: "Failed to create order",
-            error: error.message,
-            details: error.stack
+            message: errorMessage,
+            error: process.env.NODE_ENV === 'development' ? error.message : "Internal server error"
         });
     }
 });
 
-// 2. CAPTURE PAYMENT (for authorized payments)
-router.post('/capturePayment/:orderId', async (req, res) => {
+// Update Order Status with GUARANTEED Refund Processing
+router.put('/orders/:orderId/status', async (req, res) => {
     const { orderId } = req.params;
+    const { status, cancelReason } = req.body;
 
-    console.log('💳 Capturing payment for order:', orderId);
+    console.log("=== UPDATE ORDER STATUS ===");
+    console.log("Order ID:", orderId);
+    console.log("New Status:", status);
+    console.log("Cancel Reason:", cancelReason);
+
+    if (!['Pending', 'Delivered', 'Cancelled'].includes(status)) {
+        return res.status(400).json({
+            success: false,
+            message: "Invalid status. Must be Pending, Delivered, or Cancelled"
+        });
+    }
 
     try {
         const order = await Order.findById(orderId);
-
         if (!order) {
-            return res.status(404).json({ message: "Order not found" });
+            return res.status(404).json({
+                success: false,
+                message: "Order not found"
+            });
+        }
+
+        console.log("Current order state:", {
+            id: order._id,
+            status: order.status,
+            paymentStatus: order.paymentInfo?.status,
+            paymentId: order.paymentInfo?.paymentId,
+            totalAmount: order.totalAmount
+        });
+
+        let refundProcessed = false;
+        let refundDetails = null;
+
+        // Process refund when admin cancels AND payment is captured
+        if (status === 'Cancelled' && order.status !== 'Cancelled') {
+            console.log("Order being cancelled - checking refund eligibility...");
+
+            // Check if payment exists and is captured
+            if (order.paymentInfo?.paymentId && order.paymentInfo?.status === 'captured') {
+                console.log("Payment captured - processing refund");
+                console.log("Payment ID:", order.paymentInfo.paymentId);
+                console.log("Amount:", order.totalAmount);
+
+                try {
+                    // Call Razorpay refund API
+                    console.log("Calling Razorpay refund API...");
+                    const refund = await razorpayInstance.payments.refund(
+                        order.paymentInfo.paymentId,
+                        {
+                            amount: Math.round(order.totalAmount * 100), // Convert to paise
+                            speed: 'optimum',
+                            notes: {
+                                reason: cancelReason || 'Order cancelled by admin',
+                                orderId: order._id.toString(),
+                                cancelledBy: 'admin'
+                            },
+                            receipt: `refund_${order._id}_${Date.now()}`
+                        }
+                    );
+
+                    console.log("Refund API success:");
+                    console.log("Refund ID:", refund.id);
+                    console.log("Refund Amount:", refund.amount / 100);
+                    console.log("Refund Status:", refund.status);
+
+                    // Calculate estimated settlement date
+                    const estimatedSettlement = new Date();
+                    estimatedSettlement.setDate(estimatedSettlement.getDate() + 5);
+
+                    // Update order with refund information
+                    order.refundInfo = {
+                        refundId: refund.id,
+                        amount: refund.amount / 100,
+                        status: 'initiated',
+                        reason: cancelReason || 'Order cancelled by admin',
+                        initiatedAt: new Date(),
+                        estimatedSettlement: estimatedSettlement,
+                        speed: 'optimum',
+                        notes: 'Automatic refund processed on order cancellation'
+                    };
+
+                    refundProcessed = true;
+                    refundDetails = order.refundInfo;
+
+                    console.log("Refund info updated in order");
+
+                    logger.info("Refund initiated successfully", {
+                        orderId: order._id,
+                        refundId: refund.id,
+                        amount: refund.amount / 100,
+                        paymentId: order.paymentInfo.paymentId
+                    });
+
+                } catch (refundError) {
+                    console.error("Refund API failed:");
+                    console.error("Error:", refundError.message);
+                    console.error("Code:", refundError.error?.code);
+
+                    logger.error("Refund processing failed", {
+                        orderId,
+                        paymentId: order.paymentInfo.paymentId,
+                        error: refundError.message,
+                        errorCode: refundError.error?.code
+                    });
+
+                    // Set refund as failed
+                    order.refundInfo = {
+                        refundId: null,
+                        amount: order.totalAmount,
+                        status: 'failed',
+                        reason: `Refund failed: ${refundError.message}`,
+                        failedAt: new Date(),
+                        notes: 'Automatic refund failed - manual processing required'
+                    };
+
+                    console.log("Refund failed but order will still be cancelled");
+                }
+            } else {
+                console.log("No refund needed - payment not captured");
+                console.log("Payment ID exists:", !!order.paymentInfo?.paymentId);
+                console.log("Payment status:", order.paymentInfo?.status);
+            }
+
+            // Update cancellation details
+            order.status = 'Cancelled';
+            order.cancelReason = cancelReason || 'Cancelled by admin';
+            order.cancelledBy = 'admin';
+            order.cancelledAt = new Date();
+
+        } else {
+            // Regular status update
+            console.log("Regular status update to:", status);
+            order.status = status;
+        }
+
+        // Save the order
+        await order.save();
+        console.log("Order saved successfully");
+
+        const responseMessage = status === 'Cancelled'
+            ? `Order cancelled successfully! ${refundProcessed
+                ? `Refund of ₹${refundDetails?.amount} initiated. Refund ID: ${refundDetails?.refundId}. Settlement expected in 5-7 days.`
+                : order.refundInfo?.status === 'failed'
+                    ? 'Automatic refund failed - manual processing required.'
+                    : 'No refund needed - payment not captured.'
+            }`
+            : 'Order status updated successfully';
+
+        res.status(200).json({
+            success: true,
+            message: responseMessage,
+            order: {
+                _id: order._id,
+                status: order.status,
+                paymentInfo: order.paymentInfo,
+                refundInfo: order.refundInfo,
+                cancelReason: order.cancelReason,
+                cancelledAt: order.cancelledAt
+            },
+            refundProcessed: refundProcessed,
+            refundDetails: refundDetails
+        });
+
+    } catch (error) {
+        console.error("Error updating order status:", error);
+        logger.error("Error updating order status", {
+            orderId,
+            error: error.message
+        });
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to update order status",
+            error: error.message
+        });
+    }
+});
+
+// Get Payment Status
+router.get('/paymentStatus/:orderId', async (req, res) => {
+    const { orderId } = req.params;
+
+    console.log("=== GET PAYMENT STATUS ===");
+    console.log("Order ID:", orderId);
+
+    try {
+        const order = await Order.findById(orderId);
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                message: "Order not found"
+            });
+        }
+
+        let latestPaymentInfo = order.paymentInfo;
+        let latestRefundInfo = order.refundInfo;
+
+        // Fetch live data from Razorpay if order exists
+        if (order.razorpayOrderId) {
+            try {
+                const payments = await razorpayInstance.orders.fetchPayments(order.razorpayOrderId);
+                const latestPayment = payments.items.length ? payments.items[0] : null;
+
+                if (latestPayment) {
+                    latestPaymentInfo = {
+                        paymentId: latestPayment.id,
+                        amount: latestPayment.amount / 100,
+                        status: latestPayment.status,
+                        method: latestPayment.method,
+                        capturedAt: latestPayment.captured_at ? new Date(latestPayment.captured_at * 1000) : null,
+                        failedAt: latestPayment.failed_at ? new Date(latestPayment.failed_at * 1000) : null,
+                        updatedAt: new Date()
+                    };
+
+                    // Fetch refunds if payment is captured
+                    if (latestPayment.status === 'captured') {
+                        try {
+                            const refunds = await razorpayInstance.payments.fetchMultipleRefund(latestPayment.id);
+
+                            if (refunds.items.length > 0) {
+                                const latestRefund = refunds.items[0];
+                                const estimatedSettlement = new Date(latestRefund.created_at * 1000);
+                                estimatedSettlement.setDate(estimatedSettlement.getDate() + 5);
+
+                                latestRefundInfo = {
+                                    refundId: latestRefund.id,
+                                    amount: latestRefund.amount / 100,
+                                    status: latestRefund.status === 'processed' ? 'processed' : 'initiated',
+                                    reason: latestRefund.notes?.reason || order.cancelReason || 'Refund processed',
+                                    initiatedAt: new Date(latestRefund.created_at * 1000),
+                                    processedAt: latestRefund.processed_at ? new Date(latestRefund.processed_at * 1000) : null,
+                                    estimatedSettlement: estimatedSettlement,
+                                    speed: 'optimum',
+                                    notes: 'Refund from order cancellation'
+                                };
+                            } else if (order.status === 'Cancelled' && !order.refundInfo?.refundId) {
+                                // Order is cancelled but no refund exists
+                                latestRefundInfo = {
+                                    refundId: null,
+                                    amount: 0,
+                                    status: 'none',
+                                    reason: null,
+                                    initiatedAt: null,
+                                    processedAt: null,
+                                    estimatedSettlement: null,
+                                    speed: null,
+                                    notes: null
+                                };
+                            }
+                        } catch (refundError) {
+                            console.log('No refunds found for payment:', latestPayment.id);
+                        }
+                    }
+
+                    // Update order with latest info
+                    await Order.findByIdAndUpdate(orderId, {
+                        paymentInfo: latestPaymentInfo,
+                        refundInfo: latestRefundInfo
+                    });
+                }
+            } catch (razorpayError) {
+                console.error("Error fetching from Razorpay:", razorpayError.message);
+            }
+        }
+
+        res.status(200).json({
+            success: true,
+            paymentInfo: latestPaymentInfo,
+            refundInfo: latestRefundInfo,
+            order: {
+                _id: order._id,
+                status: order.status,
+                totalAmount: order.totalAmount,
+                createdAt: order.createdAt,
+                userEmail: order.userEmail
+            }
+        });
+
+    } catch (error) {
+        console.error("Error fetching payment status:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch payment status",
+            error: error.message
+        });
+    }
+});
+
+// Get Orders by User ID
+router.get('/orders/:userId', async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        const orders = await Order.find({ userId })
+            .sort({ createdAt: -1 })
+            .lean();
+
+        res.status(200).json({
+            success: true,
+            orders: orders,
+            totalCount: orders.length
+        });
+
+    } catch (error) {
+        console.error("Error fetching user orders:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch orders",
+            error: error.message
+        });
+    }
+});
+
+// Get All Orders (Admin)
+router.get('/orders', async (req, res) => {
+    try {
+        const orders = await Order.find()
+            .sort({ createdAt: -1 })
+            .populate('userId', 'name email phone')
+            .lean();
+
+        res.status(200).json({
+            success: true,
+            orders: orders,
+            totalCount: orders.length
+        });
+
+    } catch (error) {
+        console.error("Error fetching all orders:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch orders",
+            error: error.message
+        });
+    }
+});
+
+// Get refund status for specific order
+router.get('/orders/:orderId/refund-status', async (req, res) => {
+    const { orderId } = req.params;
+
+    try {
+        const order = await Order.findById(orderId);
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                message: "Order not found"
+            });
+        }
+
+        let refundInfo = order.refundInfo || { status: 'none' };
+
+        // If refund exists, fetch latest status from Razorpay
+        if (order.refundInfo?.refundId && order.paymentInfo?.paymentId) {
+            try {
+                const refunds = await razorpayInstance.payments.fetchMultipleRefund(order.paymentInfo.paymentId);
+                const latestRefund = refunds.items.find(r => r.id === order.refundInfo.refundId);
+
+                if (latestRefund) {
+                    const estimatedSettlement = new Date(latestRefund.created_at * 1000);
+                    estimatedSettlement.setDate(estimatedSettlement.getDate() + 5);
+
+                    refundInfo = {
+                        refundId: latestRefund.id,
+                        amount: latestRefund.amount / 100,
+                        status: latestRefund.status === 'processed' ? 'processed' : 'initiated',
+                        reason: order.refundInfo.reason || 'Refund processed',
+                        initiatedAt: new Date(latestRefund.created_at * 1000),
+                        processedAt: latestRefund.processed_at ? new Date(latestRefund.processed_at * 1000) : null,
+                        estimatedSettlement: estimatedSettlement,
+                        speed: 'optimum',
+                        notes: order.refundInfo.notes
+                    };
+
+                    // Update in database
+                    await Order.findByIdAndUpdate(orderId, { refundInfo });
+                }
+            } catch (error) {
+                console.log('Error fetching refund status:', error.message);
+            }
+        }
+
+        res.status(200).json({
+            success: true,
+            refundInfo: refundInfo
+        });
+
+    } catch (error) {
+        console.error("Error fetching refund status:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch refund status",
+            error: error.message
+        });
+    }
+});
+
+// Capture Payment
+router.post('/capturePayment/:orderId', async (req, res) => {
+    const { orderId } = req.params;
+
+    try {
+        const order = await Order.findById(orderId);
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                message: "Order not found"
+            });
         }
 
         if (!order.paymentInfo?.paymentId) {
-            return res.status(400).json({ message: "No payment ID found" });
+            return res.status(400).json({
+                success: false,
+                message: "No payment found for this order"
+            });
         }
 
         if (order.paymentInfo.status !== 'authorized') {
             return res.status(400).json({
-                message: `Cannot capture. Status: ${order.paymentInfo.status}`
+                success: false,
+                message: "Payment is not in authorized state"
             });
         }
 
-        // Capture payment
-        const payment = await razorpay.payments.capture(
+        // Capture the payment
+        const capturedPayment = await razorpayInstance.payments.capture(
             order.paymentInfo.paymentId,
             Math.round(order.totalAmount * 100),
-            "INR"
+            'INR'
         );
 
         // Update order
-        order.paymentInfo = {
-            paymentId: payment.id,
-            amount: payment.amount / 100,
-            status: 'captured',
-            method: payment.method,
-            updatedAt: new Date(),
-            captured: true
-        };
-        order.paymentCompleted = true;
-        order.paymentCompletedAt = new Date();
+        order.paymentInfo.status = 'captured';
+        order.paymentInfo.capturedAt = new Date();
+        order.paymentInfo.updatedAt = new Date();
 
         await order.save();
-
-        console.log('✅ Payment captured:', payment.id);
 
         res.status(200).json({
             success: true,
@@ -3474,400 +1953,38 @@ router.post('/capturePayment/:orderId', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Capture failed:', error);
-        logger.error("Capture error:", error);
+        console.error("Error capturing payment:", error);
         res.status(500).json({
             success: false,
             message: "Failed to capture payment",
-            error: error.error?.description || error.message
-        });
-    }
-});
-
-// 3. GET USER ORDERS - CORRECTED ROUTE PATH
-router.get('/user/:userId', async (req, res) => {
-    const { userId } = req.params;
-    const { includeLiveStatus } = req.query;
-
-    console.log('📋 Fetching orders for userId:', userId);
-
-    try {
-        const orders = await Order.find({ userId })
-            .sort({ createdAt: -1 })
-            .lean();
-
-        // Fetch live status if requested
-        if (includeLiveStatus === 'true') {
-            for (let order of orders) {
-                if (order.paymentInfo?.paymentId) {
-                    const live = await fetchLivePaymentStatus(order.paymentInfo.paymentId);
-                    if (live) order.paymentInfo.liveStatus = live.status;
-                }
-                if (order.refundInfo?.refundId) {
-                    const liveRefund = await fetchLiveRefundStatus(order.refundInfo.refundId);
-                    if (liveRefund) order.refundInfo.liveStatus = liveRefund.status;
-                }
-            }
-        }
-
-        console.log(`✅ Found ${orders.length} orders`);
-
-        res.status(200).json({
-            success: true,
-            orders,
-            totalCount: orders.length,
-            source: includeLiveStatus === 'true' ? 'live' : 'database'
-        });
-
-    } catch (error) {
-        console.error("❌ Error fetching orders:", error);
-        logger.error("Fetch orders error:", error);
-        res.status(500).json({
-            success: false,
-            message: "Server error",
             error: error.message
         });
     }
 });
 
-// 4. GET ALL ORDERS (Admin)
-router.get('/', async (req, res) => {
-    const { includeLiveStatus } = req.query;
-
-    console.log('👨‍💼 Fetching all orders (admin)');
-
+// Get order count
+router.get('/totalOrdercount', async (req, res) => {
     try {
-        const orders = await Order.find()
-            .sort({ createdAt: -1 })
-            .lean();
-
-        if (includeLiveStatus === 'true') {
-            for (let order of orders) {
-                if (order.paymentInfo?.paymentId) {
-                    const live = await fetchLivePaymentStatus(order.paymentInfo.paymentId);
-                    if (live) order.paymentInfo.liveStatus = live.status;
-                }
-                if (order.refundInfo?.refundId) {
-                    const liveRefund = await fetchLiveRefundStatus(order.refundInfo.refundId);
-                    if (liveRefund) order.refundInfo.liveStatus = liveRefund.status;
-                }
-            }
-        }
-
-        console.log(`✅ Found ${orders.length} orders`);
-
+        const count = await Order.countDocuments();
         res.status(200).json({
             success: true,
-            orders,
-            totalCount: orders.length
+            totalOrders: count
         });
-
     } catch (error) {
-        console.error("❌ Error fetching orders:", error);
-        res.status(500).json({ success: false, message: "Server error" });
-    }
-});
-
-// 5. GET REFUND STATUS
-router.get('/:orderId/refund-status', async (req, res) => {
-    const { orderId } = req.params;
-
-    console.log('🔄 Fetching refund status:', orderId);
-
-    try {
-        const order = await Order.findById(orderId);
-        if (!order) {
-            return res.status(404).json({ message: "Order not found" });
-        }
-
-        if (!order.refundInfo?.refundId) {
-            return res.status(200).json({
-                message: "No refund found",
-                refundInfo: null
-            });
-        }
-
-        // Fetch live status
-        try {
-            const refund = await razorpay.refunds.fetch(order.refundInfo.refundId);
-
-            // Update if changed
-            if (order.refundInfo.status !== refund.status) {
-                order.refundInfo.status = refund.status;
-                if (refund.status === 'processed') {
-                    order.refundInfo.processedAt = new Date();
-                    order.status = 'Refunded';
-                }
-                await order.save();
-            }
-
-            res.status(200).json({
-                refundInfo: order.refundInfo,
-                liveStatus: refund.status,
-                source: 'razorpay'
-            });
-        } catch (rzpError) {
-            console.log('⚠️ Using cached refund status');
-            res.status(200).json({
-                refundInfo: order.refundInfo,
-                liveStatus: order.refundInfo.status,
-                source: 'cache'
-            });
-        }
-    } catch (error) {
-        logger.error("Refund status error:", error);
-        res.status(500).json({ message: "Server error" });
-    }
-});
-
-// 6. UPDATE ORDER STATUS (with auto-refund)
-router.put('/:orderId/status', async (req, res) => {
-    const { orderId } = req.params;
-    const { status, cancelReason } = req.body;
-
-    console.log('📝 Updating order:', { orderId, status });
-
-    if (!['Pending', 'Delivered', 'Cancelled'].includes(status)) {
-        return res.status(400).json({ message: "Invalid status" });
-    }
-
-    try {
-        const order = await Order.findById(orderId);
-        if (!order) {
-            return res.status(404).json({ message: "Order not found" });
-        }
-
-        let refundProcessed = false;
-
-        // AUTO-REFUND on cancellation
-        if (status === 'Cancelled' &&
-            order.status !== 'Cancelled' &&
-            order.paymentInfo?.status === 'captured' &&
-            order.paymentInfo?.paymentId &&
-            !order.refundInfo?.refundId) {
-
-            try {
-                console.log('🔄 Processing auto-refund...');
-
-                const refund = await razorpay.payments.refund(
-                    order.paymentInfo.paymentId,
-                    {
-                        amount: Math.round(order.totalAmount * 100),
-                        speed: 'optimum',
-                        notes: {
-                            reason: cancelReason || 'Cancelled by admin',
-                            orderId: order._id.toString()
-                        }
-                    }
-                );
-
-                const estimatedSettlement = new Date();
-                estimatedSettlement.setDate(estimatedSettlement.getDate() + 5);
-
-                order.refundInfo = {
-                    refundId: refund.id,
-                    amount: refund.amount / 100,
-                    status: refund.status,
-                    speed: 'optimum',
-                    reason: cancelReason || 'Cancelled by admin',
-                    createdAt: new Date(refund.created_at * 1000),
-                    estimatedSettlement,
-                    notes: 'Auto-refund initiated. Settlement in 5-7 days.'
-                };
-
-                refundProcessed = true;
-                console.log('✅ Refund processed:', refund.id);
-
-            } catch (refundError) {
-                console.error('❌ Refund failed:', refundError);
-                logger.error("Refund error:", refundError);
-                order.refundInfo = {
-                    status: 'failed',
-                    reason: cancelReason || 'Cancelled by admin',
-                    error: refundError.error?.description || refundError.message,
-                    notes: 'Auto-refund failed - manual intervention needed'
-                };
-            }
-        }
-
-        // Update order status
-        order.status = status;
-        if (status === 'Cancelled') {
-            order.cancelReason = cancelReason || 'Cancelled by admin';
-            order.cancelledBy = 'admin';
-            order.cancelledAt = new Date();
-        }
-
-        await order.save();
-
-        console.log('✅ Order updated:', orderId);
-
-        res.status(200).json({
-            success: true,
-            message: "Order updated successfully",
-            order,
-            refundProcessed
-        });
-
-    } catch (error) {
-        console.error("❌ Update failed:", error);
-        logger.error("Update error:", error);
-        res.status(500).json({ success: false, message: "Server error" });
-    }
-});
-
-// 7. MANUAL REFUND
-router.post('/:orderId/refund', async (req, res) => {
-    const { orderId } = req.params;
-    const { amount, reason, speed = 'optimum' } = req.body;
-
-    console.log('💰 Manual refund:', orderId);
-
-    try {
-        const order = await Order.findById(orderId);
-        if (!order) {
-            return res.status(404).json({ message: "Order not found" });
-        }
-
-        if (!order.paymentInfo?.paymentId) {
-            return res.status(400).json({ message: "No payment to refund" });
-        }
-
-        if (order.paymentInfo.status !== 'captured') {
-            return res.status(400).json({
-                message: `Cannot refund. Status: ${order.paymentInfo.status}`
-            });
-        }
-
-        if (order.refundInfo?.refundId) {
-            return res.status(400).json({ message: "Already refunded" });
-        }
-
-        const refundAmount = amount || order.totalAmount;
-
-        const refund = await razorpay.payments.refund(
-            order.paymentInfo.paymentId,
-            {
-                amount: Math.round(refundAmount * 100),
-                speed: speed,
-                notes: {
-                    reason: reason || 'Manual refund',
-                    orderId: order._id.toString()
-                }
-            }
-        );
-
-        const estimatedDays = speed === 'optimum' ? 5 : 7;
-        const estimatedSettlement = new Date();
-        estimatedSettlement.setDate(estimatedSettlement.getDate() + estimatedDays);
-
-        order.refundInfo = {
-            refundId: refund.id,
-            amount: refund.amount / 100,
-            status: refund.status,
-            speed: speed,
-            reason: reason || 'Manual refund',
-            createdAt: new Date(refund.created_at * 1000),
-            estimatedSettlement,
-            notes: `Manual refund. Settlement in ${estimatedDays} days.`
-        };
-
-        if (order.status !== 'Cancelled') {
-            order.status = 'Cancelled';
-            order.cancelReason = reason || 'Manual refund';
-            order.cancelledBy = 'admin';
-            order.cancelledAt = new Date();
-        }
-
-        await order.save();
-
-        console.log('✅ Refund processed:', refund.id);
-
-        res.status(200).json({
-            success: true,
-            message: "Refund processed",
-            refund: order.refundInfo
-        });
-
-    } catch (error) {
-        console.error("❌ Refund failed:", error);
-        logger.error("Refund error:", error);
+        console.error("Error getting order count:", error);
         res.status(500).json({
             success: false,
-            message: "Refund failed",
-            error: error.error?.description || error.message
+            message: "Failed to get order count"
         });
     }
 });
 
-// 8. PAYMENT STATUS (legacy)
-router.get('/paymentStatus/:orderId', async (req, res) => {
-    const { orderId } = req.params;
-
-    try {
-        const order = await Order.findById(orderId);
-        if (!order) {
-            return res.status(404).json({ message: "Order not found" });
-        }
-
-        let livePaymentStatus = null;
-        if (order.paymentInfo?.paymentId) {
-            livePaymentStatus = await fetchLivePaymentStatus(order.paymentInfo.paymentId);
-        }
-
-        res.status(200).json({
-            paymentInfo: order.paymentInfo,
-            livePaymentStatus,
-            refundInfo: order.refundInfo
-        });
-
-    } catch (error) {
-        res.status(500).json({ message: "Server error" });
-    }
-});
-
-// 9. GET SINGLE ORDER (must be last)
-router.get('/:orderId', async (req, res) => {
-    const { orderId } = req.params;
-
-    console.log('🔍 Fetching order:', orderId);
-
-    try {
-        const order = await Order.findById(orderId).lean();
-
-        if (!order) {
-            return res.status(404).json({ message: "Order not found" });
-        }
-
-        // Fetch live statuses
-        if (order.paymentInfo?.paymentId) {
-            const live = await fetchLivePaymentStatus(order.paymentInfo.paymentId);
-            if (live) order.paymentInfo.liveStatus = live.status;
-        }
-
-        if (order.refundInfo?.refundId) {
-            const liveRefund = await fetchLiveRefundStatus(order.refundInfo.refundId);
-            if (liveRefund) order.refundInfo.liveStatus = liveRefund.status;
-        }
-
-        res.status(200).json({
-            success: true,
-            order
-        });
-
-    } catch (error) {
-        console.error("❌ Error:", error);
-        res.status(500).json({ success: false, message: "Server error" });
-    }
-});
-
-// Health check
-router.get('/health/check', (req, res) => {
+// Test route
+router.get('/test', (req, res) => {
     res.json({
-        status: 'OK',
-        timestamp: new Date().toISOString(),
-        razorpay: !!(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET),
-        email: !!(process.env.EMAIL_USERNAME && process.env.EMAIL_PASSWORD)
+        success: true,
+        message: "Order routes working!",
+        timestamp: new Date().toISOString()
     });
 });
 

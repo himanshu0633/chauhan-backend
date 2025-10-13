@@ -86,12 +86,7 @@ app.use('/api/review', reviewRoutes);
 // 8) Routes (Routers only; no app.listen in any route file)
 app.use('/admin', adminRoutes);
 app.use('/user', usersRoutes);
-// app.use('/api', orderRoutes);
-
-// Register routes
-app.use('/api', orderRoutes);  // This makes /api/createOrder work
-app.use('/api/orders', orderRoutes);  // This makes /api/orders/* work
-
+app.use('/api', orderRoutes);
 app.use('/videos', videoRoutes);
 app.use('/webhook', razorpayWebhookRouter);
 // app.use('/', support);
