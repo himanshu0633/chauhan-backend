@@ -2370,12 +2370,6 @@ router.post('/createOrder', async (req, res) => {
                 status: razorpayOrder.status,
                 payment_capture: razorpayOrder.payment_capture
             });
-
-            // // send order email
-            sendOrderEmail(email, newOrder).catch(err =>
-                logger.error("Email failed:", err.message)
-            );
-
         } catch (razorpayError) {
             console.error("=== RAZORPAY ERROR ===");
             console.error("Error:", razorpayError.message);
@@ -2432,6 +2426,13 @@ router.post('/createOrder', async (req, res) => {
             const newOrder = new Order(orderData);
             savedOrder = await newOrder.save();
             console.log("Database order created successfully:", savedOrder._id);
+
+            // Send order confirmation email
+            sendOrderEmail(user.email, savedOrder).catch(err => {
+                console.error("Email sending failed:", err.message);
+                logger.error("Email failed:", err.message);
+            });
+
         } catch (dbError) {
             console.error("=== DATABASE ERROR ===");
             console.error("Error:", dbError.message);
