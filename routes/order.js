@@ -2129,7 +2129,7 @@ router.post('/createOrder', async (req, res) => {
             amount: amountInPaise,
             currency: "INR",
             receipt: `order_${Date.now()}_${userId.toString().slice(-6)}`,
-            payment_capture: 1, // 🔥 CRITICAL: AUTO-CAPTURE ENABLED
+            // payment_capture: 1, // 🔥 CRITICAL: AUTO-CAPTURE ENABLED
             notes: {
                 userId: userId.toString(),
                 phone: formattedPhone,
