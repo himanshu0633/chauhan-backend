@@ -1998,11 +1998,20 @@ const Order = require('../models/order');
 const Admin = require('../models/admin');
 const { logger } = require("../utils/logger");
 const Razorpay = require('razorpay');
+const nodemailer = require('nodemailer');
 
 // Initialize Razorpay instance
 const razorpayInstance = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID,
     key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
+
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USERNAME,
+        pass: process.env.EMAIL_PASSWORD,
+    },
 });
 
 const sendOrderEmail = async (toEmail, orderData) => {
