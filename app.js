@@ -228,5 +228,10 @@ app.use((req, res, next) => {
 app.use((err, req, res, next) => {
   logger.error('Unhandled error', { error: err?.message, stack: err?.stack });
   res.status(500).json({ error: 'Internal Server Error' });
+  
 });
 
+const port = process.env.PORT || 3000;  
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
+});
