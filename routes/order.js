@@ -237,12 +237,35 @@ const sendOrderEmail = async (toEmail, orderData) => {
 
 // Create Order Route - WITH AUTO CAPTURE
 router.post('/createOrder', async (req, res) => {
-    const { userId, items, address, phone, totalAmount } = req.body;
+    // CHANGE 1: Extract ALL required fields from request body
+    const { userId, userEmail, userName, items, address, phone, totalAmount } = req.body;
 
     console.log("=== CREATE ORDER REQUEST ===");
     console.log("Full request body:", JSON.stringify(req.body, null, 2));
+    console.log("Extracted fields:", {
+        userId, userEmail, userName,
+        itemsCount: items?.length,
+        address: address?.substring(0, 50) + "...",
+        phone,
+        totalAmount
+    });
 
     try {
+        // CHANGE 2: Add validation for userEmail and userName
+        if (!userEmail?.trim()) {
+            return res.status(400).json({
+                success: false,
+                message: "Email is required"
+            });
+        }
+
+        if (!userName?.trim()) {
+            return res.status(400).json({
+                success: false,
+                message: "Name is required"
+            });
+        }
+
         // Comprehensive validation
         if (!items || !Array.isArray(items) || items.length === 0) {
             return res.status(400).json({
@@ -272,30 +295,41 @@ router.post('/createOrder', async (req, res) => {
             });
         }
 
-        // If userId is provided, fetch user details; otherwise, create a guest order
+        // CHANGE 3: Use the email and name from request body instead of fetching from database
         let user;
-        if (userId) {
+        if (userId && userId !== 'guest') {
             console.log("Fetching user with ID:", userId);
-            user = await Admin.findById(userId);
-            if (!user) {
-                console.error("User not found:", userId);
-                return res.status(404).json({
-                    success: false,
-                    message: "User not found"
-                });
+            try {
+                user = await Admin.findById(userId);
+                if (!user) {
+                    console.log("User not found in DB, using provided details");
+                    user = {
+                        _id: userId,
+                        email: userEmail,
+                        name: userName
+                    };
+                } else {
+                    console.log("User found in DB:", {
+                        id: user._id,
+                        email: user.email,
+                        name: user.name
+                    });
+                }
+            } catch (userError) {
+                console.log("Error fetching user, using provided details:", userError.message);
+                user = {
+                    _id: userId,
+                    email: userEmail,
+                    name: userName
+                };
             }
-            console.log("User found:", {
-                id: user._id,
-                email: user.email,
-                name: user.name
-            });
         } else {
-            // If no userId, proceed with default guest data
-            console.log("User ID not provided. Proceeding with guest order.");
+            // For guest users or when userId is 'guest'
+            console.log("Proceeding with guest order with provided details.");
             user = {
-                _id: 'guest', // Guest user ID
-                email: 'guest@example.com', // Default guest email
-                name: 'Guest User', // Default guest name
+                _id: userId || 'guest',
+                email: userEmail,
+                name: userName
             };
         }
 
@@ -344,6 +378,15 @@ router.post('/createOrder', async (req, res) => {
 
         console.log("Formatted phone:", formattedPhone);
 
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(user.email.trim())) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid email format"
+            });
+        }
+
         // Check Razorpay initialization
         if (!razorpayInstance || !process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
             console.error("Razorpay configuration error");
@@ -365,7 +408,9 @@ router.post('/createOrder', async (req, res) => {
             notes: {
                 userId: user._id.toString(),
                 phone: formattedPhone,
-                itemCount: items.length.toString()
+                itemCount: items.length.toString(),
+                userEmail: user.email,
+                userName: user.name
             }
         };
 
@@ -408,8 +453,8 @@ router.post('/createOrder', async (req, res) => {
         console.log("Creating database order...");
         const orderData = {
             userId: user._id.toString(),
-            userEmail: user.email || '',
-            userName: user.name || 'Guest User',
+            userEmail: user.email,
+            userName: user.name,
             items: items.map(item => ({
                 productId: item.productId.toString(),
                 name: item.name.toString().trim(),
@@ -438,22 +483,27 @@ router.post('/createOrder', async (req, res) => {
             savedOrder = await newOrder.save();
             console.log("Database order created successfully:", savedOrder._id);
 
-            // Send order confirmation email
+            // Send order confirmation email to the email provided in request
             sendOrderEmail(user.email, savedOrder).catch(err => {
                 console.error("Email sending failed:", err.message);
-                logger.error("Email failed:", err.message);
+                if (typeof logger !== 'undefined' && logger && typeof logger.error === 'function') {
+                    logger.error("Email failed:", err.message);
+                }
             });
 
         } catch (dbError) {
             console.error("=== DATABASE ERROR ===");
             console.error("Error:", dbError.message);
+            console.error("Full error:", dbError);
 
             if (dbError.name === 'ValidationError') {
                 const validationErrors = Object.values(dbError.errors).map(e => e.message);
+                console.error("Validation errors:", validationErrors);
                 return res.status(400).json({
                     success: false,
                     message: "Order validation failed: " + validationErrors.join(', '),
-                    razorpayOrderId: razorpayOrder.id
+                    razorpayOrderId: razorpayOrder.id,
+                    validationErrors: validationErrors
                 });
             }
 
@@ -469,7 +519,7 @@ router.post('/createOrder', async (req, res) => {
                 success: false,
                 message: "Failed to save order. Please contact support with Razorpay Order ID: " + razorpayOrder.id,
                 error: "Database error",
-                razorpayOrderId: razorpayOrder.id
+                details: process.env.NODE_ENV === 'development' ? dbError.message : undefined
             });
         }
 
@@ -479,6 +529,7 @@ router.post('/createOrder', async (req, res) => {
                 orderId: savedOrder._id,
                 razorpayOrderId: razorpayOrder.id,
                 userId,
+                userEmail,
                 totalAmount
             });
         }
@@ -510,6 +561,7 @@ router.post('/createOrder', async (req, res) => {
             logger.error("Order creation failed", {
                 error: error.message,
                 userId,
+                userEmail,
                 totalAmount
             });
         }
@@ -531,7 +583,8 @@ router.post('/createOrder', async (req, res) => {
         res.status(statusCode).json({
             success: false,
             message: errorMessage,
-            error: process.env.NODE_ENV === 'development' ? error.message : "Internal server error"
+            error: process.env.NODE_ENV === 'development' ? error.message : "Internal server error",
+            details: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
     }
 });

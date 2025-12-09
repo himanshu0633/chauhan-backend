@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 
 const orderSchema = new mongoose.Schema({
     userId: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: mongoose.Schema.Types.Mixed,
         required: true,
         ref: 'Admin', // Changed to Admin since that's your user model
     },
