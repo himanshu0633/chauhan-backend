@@ -234,7 +234,125 @@ const sendOrderEmail = async (toEmail, orderData) => {
 
     return transporter.sendMail(mailOptions);
 };
+// Associate guest orders with user account
+router.post('/associateGuestOrders', async (req, res) => {
+    const { guestEmail, userId } = req.body;
 
+    console.log("=== ASSOCIATE GUEST ORDERS ===");
+    console.log("Guest Email:", guestEmail);
+    console.log("User ID:", userId);
+
+    try {
+        if (!guestEmail || !userId) {
+            return res.status(400).json({
+                success: false,
+                message: "Email and User ID are required"
+            });
+        }
+
+        // Find user by ID to get email
+        const user = await Admin.findById(userId);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found"
+            });
+        }
+
+        console.log("User email from DB:", user.email);
+
+        // Find all orders with guestEmail and either:
+        // 1. userId = 'guest' OR
+        // 2. userId is a guest ID (not a valid ObjectId)
+        const guestOrders = await Order.find({
+            userEmail: guestEmail.trim().toLowerCase(),
+            $or: [
+                { userId: 'guest' },
+                { userId: /^guest_/ },
+                { userId: { $type: 'string' } }
+            ]
+        });
+
+        console.log(`Found ${guestOrders.length} guest orders to associate`);
+
+        if (guestOrders.length === 0) {
+            return res.status(200).json({
+                success: true,
+                message: "No guest orders found for this email",
+                associatedCount: 0
+            });
+        }
+
+        // Update each order with the actual user ID
+        let updatedCount = 0;
+        const updatePromises = guestOrders.map(async (order) => {
+            try {
+                const result = await Order.findByIdAndUpdate(
+                    order._id,
+                    {
+                        userId: userId,
+                        userEmail: user.email, // Use the email from user account (might be different case)
+                        userName: user.name || order.userName // Prefer user's name from account
+                    },
+                    { new: true }
+                );
+                if (result) updatedCount++;
+                return result;
+            } catch (err) {
+                console.error(`Failed to update order ${order._id}:`, err.message);
+                return null;
+            }
+        });
+
+        await Promise.all(updatePromises);
+
+        console.log(`Successfully associated ${updatedCount} orders`);
+
+        res.status(200).json({
+            success: true,
+            message: `Successfully associated ${updatedCount} guest orders with your account`,
+            associatedCount: updatedCount,
+            userEmail: user.email
+        });
+
+    } catch (error) {
+        console.error("Error associating guest orders:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to associate guest orders",
+            error: error.message
+        });
+    }
+});
+// Get orders by user email (for associating guest orders)
+router.get('/orders/email/:email', async (req, res) => {
+    const { email } = req.params;
+    
+    try {
+        const orders = await Order.find({
+            $or: [
+                { userEmail: email.toLowerCase() },
+                { userEmail: new RegExp(`^${email}$`, 'i') } // Case-insensitive
+            ]
+        })
+        .sort({ createdAt: -1 })
+        .lean();
+
+        res.status(200).json({
+            success: true,
+            orders: orders,
+            totalCount: orders.length
+        });
+
+    } catch (error) {
+        console.error("Error fetching orders by email:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch orders",
+            error: error.message
+        });
+    }
+});
 // Create Order Route - WITH AUTO CAPTURE
 router.post('/createOrder', async (req, res) => {
     // CHANGE 1: Extract ALL required fields from request body
