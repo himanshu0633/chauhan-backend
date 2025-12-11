@@ -11,7 +11,7 @@ const orderSchema = new mongoose.Schema({
         type: String,
         required: true,
         trim: true,
-        lowercase: true, // Add this for consistent comparison
+        lowercase: true, 
         index: true
     },
     userName: {

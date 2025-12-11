@@ -1006,6 +1006,11 @@ router.get('/orders/:userId', async (req, res) => {
     try {
         const orders = await Order.find({ userId })
             .sort({ createdAt: -1 })
+            .populate({
+                path: 'items.productId',
+                select: 'name images price', // Add any other fields you need
+                model: 'Product'
+            })
             .lean();
 
         res.status(200).json({
@@ -1023,30 +1028,35 @@ router.get('/orders/:userId', async (req, res) => {
         });
     }
 });
-
 // Get All Orders (Admin)
 router.get('/orders', async (req, res) => {
-    try {
-        const orders = await Order.find()
-            .sort({ createdAt: -1 })
-            .populate('userId', 'name email phone')
-            .lean();
+  try {
+    const orders = await Order.find()
+      .sort({ createdAt: -1 })
+      .populate({
+        path: 'items.productId',
+        select: 'name consumer_price media',
+        strictPopulate: false,     // <-- THIS PREVENTS CRASH
+      })
+      .lean();
 
-        res.status(200).json({
-            success: true,
-            orders: orders,
-            totalCount: orders.length
-        });
+    res.status(200).json({
+      success: true,
+      orders,
+      totalCount: orders.length
+    });
 
-    } catch (error) {
-        console.error("Error fetching all orders:", error);
-        res.status(500).json({
-            success: false,
-            message: "Failed to fetch orders",
-            error: error.message
-        });
-    }
+  } catch (error) {
+    console.error("ORDERS FETCH ERROR:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch orders",
+      error: error.message
+    });
+  }
 });
+
+
 
 // Get refund status for specific order
 router.get('/orders/:orderId/refund-status', async (req, res) => {
