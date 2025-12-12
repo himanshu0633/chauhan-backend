@@ -326,32 +326,34 @@ router.post('/associateGuestOrders', async (req, res) => {
 });
 // Get orders by user email (for associating guest orders)
 router.get('/orders/email/:email', async (req, res) => {
+  try {
     const { email } = req.params;
     
-    try {
-        const orders = await Order.find({
-            $or: [
-                { userEmail: email.toLowerCase() },
-                { userEmail: new RegExp(`^${email}$`, 'i') } // Case-insensitive
-            ]
-        })
-        .sort({ createdAt: -1 })
-        .lean();
+    const orders = await Order.find({ userEmail: email })
+      .populate({
+        path: 'items.productId',
+        select: 'name media description retail_price consumer_price',
+      })
+      .sort({ createdAt: -1 });
 
-        res.status(200).json({
-            success: true,
-            orders: orders,
-            totalCount: orders.length
-        });
+    const formattedOrders = orders.map(order => ({
+      ...order.toObject(),
+      items: order.items.map(item => ({
+        ...item,
+        product: item.productId ? {
+          _id: item.productId._id,
+          name: item.productId.name,
+          media: item.productId.media,
+          retail_price: item.productId.retail_price,
+          consumer_price: item.productId.consumer_price
+        } : null
+      }))
+    }));
 
-    } catch (error) {
-        console.error("Error fetching orders by email:", error);
-        res.status(500).json({
-            success: false,
-            message: "Failed to fetch orders",
-            error: error.message
-        });
-    }
+    res.status(200).json({ success: true, orders: formattedOrders });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 // Create Order Route - WITH AUTO CAPTURE
 router.post('/createOrder', async (req, res) => {
@@ -1001,33 +1003,37 @@ router.get('/paymentStatus/:orderId', async (req, res) => {
 
 // Get Orders by User ID
 router.get('/orders/:userId', async (req, res) => {
+  try {
     const { userId } = req.params;
+    
+    const orders = await Order.find({ userId })
+      .populate({
+        path: 'items.productId',
+        select: 'name media description retail_price consumer_price',
+      })
+      .sort({ createdAt: -1 });
 
-    try {
-        const orders = await Order.find({ userId })
-            .sort({ createdAt: -1 })
-            .populate({
-                path: 'items.productId',
-                select: 'name images price', // Add any other fields you need
-                model: 'Product'
-            })
-            .lean();
+    // Format the response
+    const formattedOrders = orders.map(order => ({
+      ...order.toObject(),
+      items: order.items.map(item => ({
+        ...item,
+        product: item.productId ? {
+          _id: item.productId._id,
+          name: item.productId.name,
+          media: item.productId.media,
+          retail_price: item.productId.retail_price,
+          consumer_price: item.productId.consumer_price
+        } : null
+      }))
+    }));
 
-        res.status(200).json({
-            success: true,
-            orders: orders,
-            totalCount: orders.length
-        });
-
-    } catch (error) {
-        console.error("Error fetching user orders:", error);
-        res.status(500).json({
-            success: false,
-            message: "Failed to fetch orders",
-            error: error.message
-        });
-    }
+    res.status(200).json({ success: true, orders: formattedOrders });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
+
 // Get All Orders (Admin)
 router.get('/orders', async (req, res) => {
   try {
@@ -1059,63 +1065,106 @@ router.get('/orders', async (req, res) => {
 
 
 // Get refund status for specific order
+// Get refund status for an order
 router.get('/orders/:orderId/refund-status', async (req, res) => {
+  try {
     const { orderId } = req.params;
-
-    try {
-        const order = await Order.findById(orderId);
-        if (!order) {
-            return res.status(404).json({
-                success: false,
-                message: "Order not found"
-            });
-        }
-
-        let refundInfo = order.refundInfo || { status: 'none' };
-
-        // Fetch latest status from Razorpay if refund exists
-        if (order.refundInfo?.refundId && order.paymentInfo?.paymentId) {
-            try {
-                const refunds = await razorpayInstance.payments.fetchMultipleRefund(order.paymentInfo.paymentId);
-                const latestRefund = refunds.items.find(r => r.id === order.refundInfo.refundId);
-
-                if (latestRefund) {
-                    const estimatedSettlement = new Date(latestRefund.created_at * 1000);
-                    estimatedSettlement.setDate(estimatedSettlement.getDate() + 5);
-
-                    refundInfo = {
-                        refundId: latestRefund.id,
-                        amount: latestRefund.amount / 100,
-                        status: latestRefund.status === 'processed' ? 'processed' : 'initiated',
-                        reason: order.refundInfo.reason || 'Refund processed',
-                        initiatedAt: new Date(latestRefund.created_at * 1000),
-                        processedAt: latestRefund.processed_at ? new Date(latestRefund.processed_at * 1000) : null,
-                        estimatedSettlement: estimatedSettlement,
-                        speed: 'optimum',
-                        notes: order.refundInfo.notes
-                    };
-
-                    // Update in database
-                    await Order.findByIdAndUpdate(orderId, { refundInfo });
-                }
-            } catch (error) {
-                console.log('Error fetching refund status:', error.message);
-            }
-        }
-
-        res.status(200).json({
-            success: true,
-            refundInfo: refundInfo
-        });
-
-    } catch (error) {
-        console.error("Error fetching refund status:", error);
-        res.status(500).json({
-            success: false,
-            message: "Failed to fetch refund status",
-            error: error.message
-        });
+    
+    const order = await Order.findById(orderId).select('refundInfo paymentInfo');
+    
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
     }
+
+    res.status(200).json({
+      success: true,
+      refundInfo: order.refundInfo || { status: 'none' }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
+// Get payment status for an order
+router.get('/paymentStatus/:orderId', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    
+    const order = await Order.findById(orderId).select('paymentInfo razorpayOrderId');
+    
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    // If payment is already captured, return it
+    if (order.paymentInfo?.status === 'captured') {
+      return res.status(200).json({
+        success: true,
+        paymentInfo: order.paymentInfo
+      });
+    }
+
+    // Check with Razorpay API for latest status
+    if (order.razorpayOrderId) {
+      const Razorpay = require('razorpay');
+      const razorpay = new Razorpay({
+        key_id: process.env.RAZORPAY_KEY_ID,
+        key_secret: process.env.RAZORPAY_KEY_SECRET,
+      });
+
+      // Fetch payments for this order
+      const payments = await razorpay.orders.fetchPayments(order.razorpayOrderId);
+      
+      if (payments.items && payments.items.length > 0) {
+        const latestPayment = payments.items[0];
+        
+        order.paymentInfo = {
+          paymentId: latestPayment.id,
+          amount: latestPayment.amount / 100,
+          status: latestPayment.status,
+          method: latestPayment.method,
+          updatedAt: new Date()
+        };
+        
+        await order.save();
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      paymentInfo: order.paymentInfo || { status: 'pending' }
+    });
+  } catch (error) {
+    console.error('Error fetching payment status:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+// Associate guest orders with user account
+router.post('/associateGuestOrders', async (req, res) => {
+  try {
+    const { guestEmail, userId } = req.body;
+    
+    if (!guestEmail || !userId) {
+      return res.status(400).json({ error: 'Email and userId are required' });
+    }
+
+    const result = await Order.updateMany(
+      { 
+        userEmail: guestEmail,
+        userId: { $exists: false }
+      },
+      { 
+        $set: { userId: userId }
+      }
+    );
+
+    res.status(200).json({
+      success: true,
+      associatedCount: result.modifiedCount,
+      message: `Associated ${result.modifiedCount} guest orders with your account`
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 module.exports = router;
